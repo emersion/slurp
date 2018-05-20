@@ -32,7 +32,7 @@ static void pointer_handle_enter(void *data, struct wl_pointer *wl_pointer,
 	pointer->x = wl_fixed_to_int(surface_x);
 	pointer->y = wl_fixed_to_int(surface_y);
 
-	// TODO: handle multiple outputs
+	// TODO: handle multiple overlapping outputs
 	pointer->current_output = output;
 }
 
@@ -40,24 +40,21 @@ static void pointer_handle_leave(void *data, struct wl_pointer *wl_pointer,
 		uint32_t serial, struct wl_surface *surface) {
 	struct slurp_pointer *pointer = data;
 
-	// TODO: handle multiple outputs
+	// TODO: handle multiple overlapping outputs
 	pointer->current_output = NULL;
 }
 
 static void pointer_handle_motion(void *data, struct wl_pointer *wl_pointer,
 		uint32_t time, wl_fixed_t surface_x, wl_fixed_t surface_y) {
 	struct slurp_pointer *pointer = data;
-	struct slurp_state *state = pointer->state;
 
 	pointer->x = wl_fixed_to_int(surface_x);
 	pointer->y = wl_fixed_to_int(surface_y);
 
-	if (pointer->button_state == WL_POINTER_BUTTON_STATE_PRESSED) {
+	if (pointer->button_state == WL_POINTER_BUTTON_STATE_PRESSED &&
+			pointer->current_output != NULL) {
 		// TODO: listen for frame events instead
-		struct slurp_output *output;
-		wl_list_for_each(output, &state->outputs, link) {
-			send_frame(output);
-		}
+		send_frame(pointer->current_output);
 	}
 }
 
@@ -73,11 +70,6 @@ static void pointer_handle_button(void *data, struct wl_pointer *wl_pointer,
 	case WL_POINTER_BUTTON_STATE_PRESSED:
 		pointer->pressed_x = pointer->x;
 		pointer->pressed_y = pointer->y;
-
-		struct slurp_output *output;
-		wl_list_for_each(output, &state->outputs, link) {
-			send_frame(output);
-		}
 		break;
 	case WL_POINTER_BUTTON_STATE_RELEASED:
 		pointer_get_box(pointer, &state->result.x, &state->result.y,
@@ -201,7 +193,7 @@ static void send_frame(struct slurp_output *output) {
 		return;
 	}
 
-	render(state, output->current_buffer);
+	render(output);
 
 	wl_surface_attach(output->surface, output->current_buffer->buffer, 0, 0);
 	wl_surface_damage(output->surface, 0, 0, output->width, output->height);

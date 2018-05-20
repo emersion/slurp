@@ -14,7 +14,9 @@ static void set_source_u32(cairo_t *cairo, uint32_t color) {
 		(color >> (0*8) & 0xFF) / 255.0);
 }
 
-void render(struct slurp_state *state, struct pool_buffer *buffer) {
+void render(struct slurp_output *output) {
+	struct slurp_state *state = output->state;
+	struct pool_buffer *buffer = output->current_buffer;
 	cairo_t *cairo = buffer->cairo;
 
 	// Clear
@@ -26,7 +28,8 @@ void render(struct slurp_state *state, struct pool_buffer *buffer) {
 
 	struct slurp_pointer *pointer;
 	wl_list_for_each(pointer, &state->pointers, link) {
-		if (pointer->button_state != WL_POINTER_BUTTON_STATE_PRESSED) {
+		if (pointer->button_state != WL_POINTER_BUTTON_STATE_PRESSED ||
+				pointer->current_output != output) {
 			continue;
 		}
 

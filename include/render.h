@@ -1,9 +1,8 @@
 #ifndef _RENDER_H
 #define _RENDER_H
 
-struct slurp_state;
-struct pool_buffer;
+struct slurp_output;
 
-void render(struct slurp_state *state, struct pool_buffer *buffer);
+void render(struct slurp_output *output);
 
 #endif
