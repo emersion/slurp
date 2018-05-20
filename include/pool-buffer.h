@@ -1,5 +1,5 @@
-#ifndef _MAKO_POOL_BUFFER_H
-#define _MAKO_POOL_BUFFER_H
+#ifndef _POOL_BUFFER_H
+#define _POOL_BUFFER_H
 
 #include <cairo/cairo.h>
 #include <stdbool.h>

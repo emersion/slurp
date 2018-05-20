@@ -24,7 +24,7 @@ static bool set_cloexec(int fd) {
 }
 
 static int create_pool_file(size_t size, char **name) {
-	static const char template[] = "slurg-XXXXXX";
+	static const char template[] = "slurp-XXXXXX";
 	const char *path = getenv("XDG_RUNTIME_DIR");
 	if (path == NULL) {
 		fprintf(stderr, "XDG_RUNTIME_DIR is not set\n");

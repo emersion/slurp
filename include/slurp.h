@@ -1,5 +1,5 @@
-#ifndef _SLURG_H
-#define _SLURG_H
+#ifndef _SLURP_H
+#define _SLURP_H
 
 #include <stdbool.h>
 #include <stdint.h>
@@ -8,7 +8,7 @@
 #include "pool-buffer.h"
 #include "wlr-layer-shell-unstable-v1-client-protocol.h"
 
-struct slurg_state {
+struct slurp_state {
 	bool running;
 
 	struct wl_display *display;
@@ -16,8 +16,8 @@ struct slurg_state {
 	struct wl_shm *shm;
 	struct wl_compositor *compositor;
 	struct zwlr_layer_shell_v1 *layer_shell;
-	struct wl_list outputs; // slurg_output::link
-	struct wl_list pointers; // slurg_pointer::link
+	struct wl_list outputs; // slurp_output::link
+	struct wl_list pointers; // slurp_pointer::link
 
 	struct {
 		int32_t x, y;
@@ -25,10 +25,10 @@ struct slurg_state {
 	} result;
 };
 
-struct slurg_output {
+struct slurp_output {
 	struct wl_output *wl_output;
-	struct slurg_state *state;
-	struct wl_list link; // slurg_state::outputs
+	struct slurp_state *state;
+	struct wl_list link; // slurp_state::outputs
 
 	int32_t x, y;
 
@@ -41,17 +41,17 @@ struct slurg_output {
 	struct pool_buffer *current_buffer;
 };
 
-struct slurg_pointer {
-	struct slurg_state *state;
+struct slurp_pointer {
+	struct slurp_state *state;
 	struct wl_pointer *wl_pointer;
-	struct wl_list link; // slurg_state::pointers
+	struct wl_list link; // slurp_state::pointers
 
 	int32_t x, y;
 	int32_t pressed_x, pressed_y;
 	enum wl_pointer_button_state button_state;
 };
 
-void pointer_get_box(struct slurg_pointer *pointer, int *x, int *y,
+void pointer_get_box(struct slurp_pointer *pointer, int *x, int *y,
 	int *width, int *height);
 
 #endif

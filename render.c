@@ -4,7 +4,7 @@
 
 #include "pool-buffer.h"
 #include "render.h"
-#include "slurg.h"
+#include "slurp.h"
 
 static void set_source_u32(cairo_t *cairo, uint32_t color) {
 	cairo_set_source_rgba(cairo,
@@ -14,7 +14,7 @@ static void set_source_u32(cairo_t *cairo, uint32_t color) {
 		(color >> (0*8) & 0xFF) / 255.0);
 }
 
-void render(struct slurg_state *state, struct pool_buffer *buffer) {
+void render(struct slurp_state *state, struct pool_buffer *buffer) {
 	cairo_t *cairo = buffer->cairo;
 
 	// Clear
@@ -24,7 +24,7 @@ void render(struct slurg_state *state, struct pool_buffer *buffer) {
 	cairo_paint(cairo);
 	cairo_restore(cairo);
 
-	struct slurg_pointer *pointer;
+	struct slurp_pointer *pointer;
 	wl_list_for_each(pointer, &state->pointers, link) {
 		if (pointer->button_state != WL_POINTER_BUTTON_STATE_PRESSED) {
 			continue;

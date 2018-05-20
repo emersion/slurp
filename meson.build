@@ -1,5 +1,5 @@
 project(
-	'slurg',
+	'slurp',
 	'c',
 	version: '0.0.0',
 	license: 'MIT',
@@ -13,7 +13,7 @@ project(
 
 add_project_arguments('-Wno-unused-parameter', language: 'c')
 
-slurg_inc = include_directories('include')
+slurp_inc = include_directories('include')
 
 cairo = dependency('cairo')
 wayland_client = dependency('wayland-client')
@@ -22,7 +22,7 @@ wayland_protos = dependency('wayland-protocols', version: '>=1.14')
 subdir('protocol')
 
 executable(
-	'slurg',
+	'slurp',
 	files([
 		'main.c',
 		'pool-buffer.c',
@@ -33,7 +33,7 @@ executable(
 		client_protos,
 		wayland_client,
 	],
-	include_directories: [slurg_inc],
+	include_directories: [slurp_inc],
 	install: true,
 )
 

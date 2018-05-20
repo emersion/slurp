@@ -1,4 +1,4 @@
-# slurg
+# slurp
 
 Select a region in a Wayland compositor and print it to the standard output.
 
@@ -16,7 +16,7 @@ Then run:
 ```shell
 meson build
 ninja -C build
-build/slurg
+build/slurp
 ```
 
 ## License
