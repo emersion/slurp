@@ -17,6 +17,33 @@ static void noop() {
 
 static void send_frame(struct slurp_output *output);
 
+static struct slurp_output *output_from_surface(struct slurp_state *state,
+	struct wl_surface *surface);
+
+static void pointer_handle_enter(void *data, struct wl_pointer *wl_pointer,
+		uint32_t serial, struct wl_surface *surface,
+		wl_fixed_t surface_x, wl_fixed_t surface_y) {
+	struct slurp_pointer *pointer = data;
+	struct slurp_output *output = output_from_surface(pointer->state, surface);
+	if (output == NULL) {
+		return;
+	}
+
+	pointer->x = wl_fixed_to_int(surface_x);
+	pointer->y = wl_fixed_to_int(surface_y);
+
+	// TODO: handle multiple outputs
+	pointer->current_output = output;
+}
+
+static void pointer_handle_leave(void *data, struct wl_pointer *wl_pointer,
+		uint32_t serial, struct wl_surface *surface) {
+	struct slurp_pointer *pointer = data;
+
+	// TODO: handle multiple outputs
+	pointer->current_output = NULL;
+}
+
 static void pointer_handle_motion(void *data, struct wl_pointer *wl_pointer,
 		uint32_t time, wl_fixed_t surface_x, wl_fixed_t surface_y) {
 	struct slurp_pointer *pointer = data;
@@ -55,14 +82,18 @@ static void pointer_handle_button(void *data, struct wl_pointer *wl_pointer,
 	case WL_POINTER_BUTTON_STATE_RELEASED:
 		pointer_get_box(pointer, &state->result.x, &state->result.y,
 			&state->result.width, &state->result.height);
+		if (pointer->current_output != NULL) {
+			state->result.x += pointer->current_output->geometry.x;
+			state->result.y += pointer->current_output->geometry.y;
+		}
 		state->running = false;
 		break;
 	}
 }
 
 static const struct wl_pointer_listener pointer_listener = {
-	.enter = noop,
-	.leave = noop,
+	.enter = pointer_handle_enter,
+	.leave = pointer_handle_leave,
 	.motion = pointer_handle_motion,
 	.button = pointer_handle_button,
 	.axis = noop,
@@ -116,6 +147,47 @@ static const struct wl_seat_listener seat_listener = {
 };
 
 
+static void output_handle_geometry(void *data, struct wl_output *wl_output,
+		int32_t x, int32_t y, int32_t physical_width, int32_t physical_height,
+		int32_t subpixel, const char *make, const char *model,
+		int32_t transform) {
+	struct slurp_output *output = data;
+
+	output->geometry.x = x;
+	output->geometry.y = y;
+}
+
+static const struct wl_output_listener output_listener = {
+	.geometry = output_handle_geometry,
+	.mode = noop,
+	.done = noop,
+	.scale = noop,
+};
+
+static void create_output(struct slurp_state *state,
+		struct wl_output *wl_output) {
+	struct slurp_output *output = calloc(1, sizeof(struct slurp_output));
+	if (output == NULL) {
+		fprintf(stderr, "allocation failed\n");
+		return;
+	}
+	output->wl_output = wl_output;
+	output->state = state;
+	wl_list_insert(&state->outputs, &output->link);
+
+	wl_output_add_listener(wl_output, &output_listener, output);
+}
+
+static void destroy_output(struct slurp_output *output) {
+	if (output == NULL) {
+		return;
+	}
+	zwlr_layer_surface_v1_destroy(output->layer_surface);
+	wl_surface_destroy(output->surface);
+	wl_output_destroy(output->wl_output);
+	free(output);
+}
+
 static void send_frame(struct slurp_output *output) {
 	struct slurp_state *state = output->state;
 
@@ -136,14 +208,15 @@ static void send_frame(struct slurp_output *output) {
 	wl_surface_commit(output->surface);
 }
 
-static void destroy_output(struct slurp_output *output) {
-	if (output == NULL) {
-		return;
+static struct slurp_output *output_from_surface(struct slurp_state *state,
+		struct wl_surface *surface) {
+	struct slurp_output *output;
+	wl_list_for_each(output, &state->outputs, link) {
+		if (output->surface == surface) {
+			return output;
+		}
 	}
-	zwlr_layer_surface_v1_destroy(output->layer_surface);
-	wl_surface_destroy(output->surface);
-	wl_output_destroy(output->wl_output);
-	free(output);
+	return NULL;
 }
 
 
@@ -192,11 +265,7 @@ static void handle_global(void *data, struct wl_registry *registry,
 	} else if (strcmp(interface, wl_output_interface.name) == 0) {
 		struct wl_output *wl_output =
 			wl_registry_bind(registry, name, &wl_output_interface, 3);
-		struct slurp_output *output = calloc(1, sizeof(struct slurp_output));
-		output->wl_output = wl_output;
-		output->state = state;
-		wl_list_insert(&state->outputs, &output->link);
-		// TODO: add wl_output listener
+		create_output(state, wl_output);
 	}
 }
 
@@ -241,7 +310,7 @@ int main(int argc, char *argv[]) {
 	struct slurp_output *output;
 	wl_list_for_each(output, &state.outputs, link) {
 		output->surface = wl_compositor_create_surface(state.compositor);
-		//wl_surface_add_listener(output->surface, &surface_listener, output);
+		// TODO: wl_surface_add_listener(output->surface, &surface_listener, output);
 
 		output->layer_surface = zwlr_layer_shell_v1_get_layer_surface(
 			state.layer_shell, output->surface, output->wl_output,

@@ -8,6 +8,11 @@
 #include "pool-buffer.h"
 #include "wlr-layer-shell-unstable-v1-client-protocol.h"
 
+struct slurp_box {
+	int32_t x, y;
+	int32_t width, height;
+};
+
 struct slurp_state {
 	bool running;
 
@@ -19,10 +24,7 @@ struct slurp_state {
 	struct wl_list outputs; // slurp_output::link
 	struct wl_list pointers; // slurp_pointer::link
 
-	struct {
-		int32_t x, y;
-		int32_t width, height;
-	} result;
+	struct slurp_box result;
 };
 
 struct slurp_output {
@@ -30,7 +32,7 @@ struct slurp_output {
 	struct slurp_state *state;
 	struct wl_list link; // slurp_state::outputs
 
-	int32_t x, y;
+	struct slurp_box geometry;
 
 	struct wl_surface *surface;
 	struct zwlr_layer_surface_v1 *layer_surface;
@@ -49,6 +51,7 @@ struct slurp_pointer {
 	int32_t x, y;
 	int32_t pressed_x, pressed_y;
 	enum wl_pointer_button_state button_state;
+	struct slurp_output *current_output;
 };
 
 void pointer_get_box(struct slurp_pointer *pointer, int *x, int *y,
