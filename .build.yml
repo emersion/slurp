@@ -1,0 +1,15 @@
+image: archlinux
+packages:
+  - meson
+  - wayland
+  - wayland-protocols
+  - cairo
+sources:
+  - https://github.com/emerison/slurp
+tasks:
+  - setup: |
+      cd slurp
+      meson build
+  - build: |
+      cd slurp
+      ninja -C build
