@@ -173,6 +173,8 @@ static void destroy_output(struct slurp_output *output) {
 	if (output == NULL) {
 		return;
 	}
+	finish_buffer(&output->buffers[0]);
+	finish_buffer(&output->buffers[1]);
 	zwlr_layer_surface_v1_destroy(output->layer_surface);
 	wl_surface_destroy(output->surface);
 	wl_output_destroy(output->wl_output);
@@ -202,7 +204,8 @@ static void send_frame(struct slurp_output *output) {
 static void output_frame_handle_done(void *data, struct wl_callback *callback,
 		uint32_t time) {
 	struct slurp_output *output = data;
-	// callback is destroyed by the server
+
+	wl_callback_destroy(callback);
 
 	output->frame_scheduled = false;
 	send_frame(output);
@@ -356,6 +359,15 @@ int main(int argc, char *argv[]) {
 	wl_list_for_each_safe(output, output_tmp, &state.outputs, link) {
 		destroy_output(output);
 	}
+
+	// Make sure the compositor has unmapped our surfaces by the time we exit
+	wl_display_roundtrip(state.display);
+
+	zwlr_layer_shell_v1_destroy(state.layer_shell);
+	wl_compositor_destroy(state.compositor);
+	wl_shm_destroy(state.shm);
+	wl_registry_destroy(state.registry);
+	wl_display_disconnect(state.display);
 
 	if (state.result.width == 0 && state.result.height == 0) {
 		fprintf(stderr, "selection cancelled\n");
