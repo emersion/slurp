@@ -15,7 +15,7 @@ static void noop() {
 }
 
 
-static void send_frame(struct slurp_output *output);
+static void schedule_frame(struct slurp_output *output);
 
 static struct slurp_output *output_from_surface(struct slurp_state *state,
 	struct wl_surface *surface);
@@ -53,8 +53,7 @@ static void pointer_handle_motion(void *data, struct wl_pointer *wl_pointer,
 
 	if (pointer->button_state == WL_POINTER_BUTTON_STATE_PRESSED &&
 			pointer->current_output != NULL) {
-		// TODO: listen for frame events instead
-		send_frame(pointer->current_output);
+		schedule_frame(pointer->current_output);
 	}
 }
 
@@ -197,6 +196,31 @@ static void send_frame(struct slurp_output *output) {
 
 	wl_surface_attach(output->surface, output->current_buffer->buffer, 0, 0);
 	wl_surface_damage(output->surface, 0, 0, output->width, output->height);
+	wl_surface_commit(output->surface);
+}
+
+static void output_frame_handle_done(void *data, struct wl_callback *callback,
+		uint32_t time) {
+	struct slurp_output *output = data;
+	// callback is destroyed by the server
+
+	output->frame_scheduled = false;
+	send_frame(output);
+}
+
+static const struct wl_callback_listener output_frame_listener = {
+	.done = output_frame_handle_done,
+};
+
+static void schedule_frame(struct slurp_output *output) {
+	if (output->frame_scheduled) {
+		return;
+	}
+
+	struct wl_callback *callback = wl_surface_frame(output->surface);
+	wl_callback_add_listener(callback, &output_frame_listener, output);
+	output->frame_scheduled = true;
+
 	wl_surface_commit(output->surface);
 }
 
