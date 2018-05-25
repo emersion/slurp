@@ -1,6 +1,8 @@
+#define _POSIX_C_SOURCE 2
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 #ifdef __linux__
 #include <linux/input-event-codes.h>
 #elif __FreeBSD__
@@ -293,7 +295,23 @@ static const struct wl_registry_listener registry_listener = {
 	.global_remove = noop,
 };
 
+static const char usage[] =
+	"Usage: slurp [options...]\n"
+	"\n"
+	"  -h      Show help message and quit.\n";
+
 int main(int argc, char *argv[]) {
+	int opt;
+	while ((opt = getopt(argc, argv, "h")) != -1) {
+		switch (opt) {
+		case 'h':
+			printf("%s", usage);
+			return EXIT_SUCCESS;
+		default:
+			return EXIT_FAILURE;
+		}
+	}
+
 	struct slurp_state state = {0};
 	wl_list_init(&state.outputs);
 	wl_list_init(&state.pointers);

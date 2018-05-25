@@ -42,7 +42,7 @@ scdoc = find_program('scdoc', required: false)
 if scdoc.found()
 	sh = find_program('sh')
 
-	man_pages = [] # TODO
+	man_pages = ['slurp.1.scd']
 
 	mandir = get_option('mandir')
 
