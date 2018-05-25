@@ -17,7 +17,7 @@ static void noop() {
 }
 
 
-static void schedule_frame(struct slurp_output *output);
+static void set_output_dirty(struct slurp_output *output);
 
 static struct slurp_output *output_from_surface(struct slurp_state *state,
 	struct wl_surface *surface);
@@ -55,7 +55,7 @@ static void pointer_handle_motion(void *data, struct wl_pointer *wl_pointer,
 
 	if (pointer->button_state == WL_POINTER_BUTTON_STATE_PRESSED &&
 			pointer->current_output != NULL) {
-		schedule_frame(pointer->current_output);
+		set_output_dirty(pointer->current_output);
 	}
 }
 
@@ -183,6 +183,8 @@ static void destroy_output(struct slurp_output *output) {
 	free(output);
 }
 
+static const struct wl_callback_listener output_frame_listener;
+
 static void send_frame(struct slurp_output *output) {
 	struct slurp_state *state = output->state;
 
@@ -198,9 +200,15 @@ static void send_frame(struct slurp_output *output) {
 
 	render(output);
 
+	// Schedule a frame in case the output becomes dirty again
+	struct wl_callback *callback = wl_surface_frame(output->surface);
+	wl_callback_add_listener(callback, &output_frame_listener, output);
+	output->frame_scheduled = true;
+
 	wl_surface_attach(output->surface, output->current_buffer->buffer, 0, 0);
 	wl_surface_damage(output->surface, 0, 0, output->width, output->height);
 	wl_surface_commit(output->surface);
+	output->dirty = false;
 }
 
 static void output_frame_handle_done(void *data, struct wl_callback *callback,
@@ -208,16 +216,18 @@ static void output_frame_handle_done(void *data, struct wl_callback *callback,
 	struct slurp_output *output = data;
 
 	wl_callback_destroy(callback);
-
 	output->frame_scheduled = false;
-	send_frame(output);
+
+	if (output->dirty) {
+		send_frame(output);
+	}
 }
 
 static const struct wl_callback_listener output_frame_listener = {
 	.done = output_frame_handle_done,
 };
 
-static void schedule_frame(struct slurp_output *output) {
+static void set_output_dirty(struct slurp_output *output) {
 	if (output->frame_scheduled) {
 		return;
 	}
@@ -227,6 +237,7 @@ static void schedule_frame(struct slurp_output *output) {
 	output->frame_scheduled = true;
 
 	wl_surface_commit(output->surface);
+	output->dirty = true;
 }
 
 static struct slurp_output *output_from_surface(struct slurp_state *state,
