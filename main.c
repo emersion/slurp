@@ -228,16 +228,15 @@ static const struct wl_callback_listener output_frame_listener = {
 };
 
 static void set_output_dirty(struct slurp_output *output) {
+	output->dirty = true;
 	if (output->frame_scheduled) {
 		return;
 	}
 
 	struct wl_callback *callback = wl_surface_frame(output->surface);
 	wl_callback_add_listener(callback, &output_frame_listener, output);
-	output->frame_scheduled = true;
-
 	wl_surface_commit(output->surface);
-	output->dirty = true;
+	output->frame_scheduled = true;
 }
 
 static struct slurp_output *output_from_surface(struct slurp_state *state,
