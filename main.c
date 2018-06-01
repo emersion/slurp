@@ -150,11 +150,18 @@ static void output_handle_geometry(void *data, struct wl_output *wl_output,
 	output->geometry.y = y;
 }
 
+static void output_handle_scale(void *data, struct wl_output *wl_output,
+		int32_t scale) {
+	struct slurp_output *output = data;
+
+	output->scale = scale;
+}
+
 static const struct wl_output_listener output_listener = {
 	.geometry = output_handle_geometry,
 	.mode = noop,
 	.done = noop,
-	.scale = noop,
+	.scale = output_handle_scale,
 };
 
 static void create_output(struct slurp_state *state,
@@ -166,6 +173,7 @@ static void create_output(struct slurp_state *state,
 	}
 	output->wl_output = wl_output;
 	output->state = state;
+	output->scale = 1;
 	wl_list_insert(&state->outputs, &output->link);
 
 	wl_output_add_listener(wl_output, &output_listener, output);
@@ -192,8 +200,11 @@ static void send_frame(struct slurp_output *output) {
 		return;
 	}
 
+	int32_t buffer_width = output->width * output->scale;
+	int32_t buffer_height = output->height * output->scale;
+
 	output->current_buffer = get_next_buffer(state->shm, output->buffers,
-		output->width, output->height);
+		buffer_width, buffer_height);
 	if (output->current_buffer == NULL) {
 		return;
 	}
@@ -207,6 +218,7 @@ static void send_frame(struct slurp_output *output) {
 
 	wl_surface_attach(output->surface, output->current_buffer->buffer, 0, 0);
 	wl_surface_damage(output->surface, 0, 0, output->width, output->height);
+	wl_surface_set_buffer_scale(output->surface, output->scale);
 	wl_surface_commit(output->surface);
 	output->dirty = false;
 }

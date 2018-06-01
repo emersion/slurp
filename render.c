@@ -18,6 +18,10 @@ void render(struct slurp_output *output) {
 	struct slurp_state *state = output->state;
 	struct pool_buffer *buffer = output->current_buffer;
 	cairo_t *cairo = buffer->cairo;
+	int32_t scale = output->scale;
+
+	uint32_t border_color = 0x000000FF;
+	int border_size = 2;
 
 	// Clear
 	cairo_save(cairo);
@@ -37,10 +41,10 @@ void render(struct slurp_output *output) {
 		pointer_get_box(pointer, &x, &y, &width, &height);
 
 		// Draw border
-		int border_size = 2;
-		set_source_u32(cairo, 0x000000FF);
-		cairo_set_line_width(cairo, border_size);
-		cairo_rectangle(cairo, x, y, width, height);
+		set_source_u32(cairo, border_color);
+		cairo_set_line_width(cairo, border_size * scale);
+		cairo_rectangle(cairo, x * scale, y * scale,
+			width * scale, height * scale);
 		cairo_stroke(cairo);
 	}
 }

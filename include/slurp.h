@@ -33,6 +33,7 @@ struct slurp_output {
 	struct wl_list link; // slurp_state::outputs
 
 	struct slurp_box geometry;
+	int32_t scale;
 
 	struct wl_surface *surface;
 	struct zwlr_layer_surface_v1 *layer_surface;
