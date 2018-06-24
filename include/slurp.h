@@ -53,6 +53,9 @@ struct slurp_output {
 	int32_t width, height;
 	struct pool_buffer buffers[2];
 	struct pool_buffer *current_buffer;
+
+	struct wl_cursor_theme *cursor_theme;
+	struct wl_cursor_image *cursor_image;
 };
 
 struct slurp_pointer {
@@ -64,6 +67,8 @@ struct slurp_pointer {
 	int32_t pressed_x, pressed_y;
 	enum wl_pointer_button_state button_state;
 	struct slurp_output *current_output;
+
+	struct wl_surface *cursor_surface;
 };
 
 void pointer_get_box(struct slurp_pointer *pointer, int *x, int *y,

@@ -1,9 +1,11 @@
 #define _POSIX_C_SOURCE 2
+#include <assert.h>
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <wayland-cursor.h>
 #ifdef __linux__
 #include <linux/input-event-codes.h>
 #elif __FreeBSD__
@@ -37,6 +39,14 @@ static void pointer_handle_enter(void *data, struct wl_pointer *wl_pointer,
 
 	// TODO: handle multiple overlapping outputs
 	pointer->current_output = output;
+
+	wl_surface_set_buffer_scale(pointer->cursor_surface, output->scale);
+	wl_surface_attach(pointer->cursor_surface,
+			wl_cursor_image_get_buffer(output->cursor_image), 0, 0);
+	wl_pointer_set_cursor(wl_pointer, serial, pointer->cursor_surface,
+			output->cursor_image->hotspot_x / output->scale,
+			output->cursor_image->hotspot_y / output->scale);
+	wl_surface_commit(pointer->cursor_surface);
 }
 
 static void pointer_handle_leave(void *data, struct wl_pointer *wl_pointer,
@@ -442,6 +452,20 @@ int main(int argc, char *argv[]) {
 			ZWLR_LAYER_SURFACE_V1_ANCHOR_BOTTOM);
 		zwlr_layer_surface_v1_set_exclusive_zone(output->layer_surface, -1);
 		wl_surface_commit(output->surface);
+
+		output->cursor_theme =
+			wl_cursor_theme_load(NULL, 24 * output->scale, state.shm);
+		assert(output->cursor_theme);
+		struct wl_cursor *cursor =
+			wl_cursor_theme_get_cursor(output->cursor_theme, "crosshair");
+		assert(cursor);
+		output->cursor_image = cursor->images[0];
+	}
+
+	struct slurp_pointer *pointer;
+	wl_list_for_each(pointer, &state.pointers, link) {
+		pointer->cursor_surface =
+			wl_compositor_create_surface(state.compositor);
 	}
 
 	state.running = true;
@@ -449,7 +473,7 @@ int main(int argc, char *argv[]) {
 		// This space intentionally left blank
 	}
 
-	struct slurp_pointer *pointer, *pointer_tmp;
+	struct slurp_pointer *pointer_tmp;
 	wl_list_for_each_safe(pointer, pointer_tmp, &state.pointers, link) {
 		destroy_pointer(pointer);
 	}
