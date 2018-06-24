@@ -20,15 +20,10 @@ void render(struct slurp_output *output) {
 	cairo_t *cairo = buffer->cairo;
 	int32_t scale = output->scale;
 
-	uint32_t border_color = 0x000000FF;
-	int border_size = 2;
-
 	// Clear
-	cairo_save(cairo);
-	cairo_set_source_rgba(cairo, 0, 0, 0, 0);
 	cairo_set_operator(cairo, CAIRO_OPERATOR_SOURCE);
+	set_source_u32(cairo, state->colors.background);
 	cairo_paint(cairo);
-	cairo_restore(cairo);
 
 	struct slurp_pointer *pointer;
 	wl_list_for_each(pointer, &state->pointers, link) {
@@ -41,8 +36,13 @@ void render(struct slurp_output *output) {
 		pointer_get_box(pointer, &x, &y, &width, &height);
 
 		// Draw border
-		set_source_u32(cairo, border_color);
-		cairo_set_line_width(cairo, border_size * scale);
+		set_source_u32(cairo, state->colors.selection);
+		cairo_rectangle(cairo, x * scale, y * scale,
+			width * scale, height * scale);
+		cairo_fill(cairo);
+
+		set_source_u32(cairo, state->colors.border);
+		cairo_set_line_width(cairo, state->border_weight * scale);
 		cairo_rectangle(cairo, x * scale, y * scale,
 			width * scale, height * scale);
 		cairo_stroke(cairo);
