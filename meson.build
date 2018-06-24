@@ -17,6 +17,7 @@ slurp_inc = include_directories('include')
 
 cairo = dependency('cairo')
 wayland_client = dependency('wayland-client')
+wayland_cursor = dependency('wayland-cursor')
 wayland_protos = dependency('wayland-protocols', version: '>=1.14')
 
 subdir('protocol')
@@ -32,6 +33,7 @@ executable(
 		cairo,
 		client_protos,
 		wayland_client,
+		wayland_cursor,
 	],
 	include_directories: [slurp_inc],
 	install: true,
