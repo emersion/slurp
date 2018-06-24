@@ -1,4 +1,5 @@
 #define _POSIX_C_SOURCE 2
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -320,13 +321,44 @@ static const struct wl_registry_listener registry_listener = {
 static const char usage[] =
 	"Usage: slurp [options...]\n"
 	"\n"
-	"  -h      Show help message and quit.\n"
-	"  -d      Display dimensions of selection.\n";
+	"  -h         Show help message and quit.\n"
+	"  -d         Display dimensions of selection.\n"
+	"  -b #rrggbb Set background color.\n"
+	"  -c #rrggbb Set border color.\n"
+	"  -s #rrggbb Set selection color.\n"
+	"  -w n       Set border weight.\n";
+
+uint32_t parse_color(const char *color) {
+	if (color[0] == '#') {
+		++color;
+	}
+
+	int len = strlen(color);
+	if (len != 6 && len != 8) {
+		fprintf(stderr, "Invalid color %s, "
+				"defaulting to color 0xFFFFFFFF\n", color);
+		return 0xFFFFFFFF;
+	}
+	uint32_t res = (uint32_t)strtoul(color, NULL, 16);
+	if (strlen(color) == 6) {
+		res = (res << 8) | 0xFF;
+	}
+	return res;
+}
 
 int main(int argc, char *argv[]) {
+	struct slurp_state state = {
+		.colors = {
+			.background = 0xFFFFFF40,
+			.border = 0x000000FF,
+			.selection = 0x00000000,
+		},
+		.border_weight = 2,
+	};
+
 	bool display_dimensions = false;
 	int opt;
-	while ((opt = getopt(argc, argv, "hd")) != -1) {
+	while ((opt = getopt(argc, argv, "hdb:c:s:w:")) != -1) {
 		switch (opt) {
 		case 'h':
 			printf("%s", usage);
@@ -334,12 +366,31 @@ int main(int argc, char *argv[]) {
 		case 'd':
 			display_dimensions = true;
 			break;
+		case 'b':
+			state.colors.background = parse_color(optarg);
+			break;
+		case 'c':
+			state.colors.border = parse_color(optarg);
+			break;
+		case 's':
+			state.colors.selection = parse_color(optarg);
+			break;
+		case 'w': {
+			errno = 0;
+			char *endptr;
+			state.border_weight = strtol(optarg, &endptr, 10);
+			if (*endptr || errno) {
+				fprintf(stderr, "Error: expected numeric argument for -w\n");
+				exit(EXIT_FAILURE);
+			}
+			break;
+		}
 		default:
+			printf("%s", usage);
 			return EXIT_FAILURE;
 		}
 	}
 
-	struct slurp_state state = {0};
 	wl_list_init(&state.outputs);
 	wl_list_init(&state.pointers);
 

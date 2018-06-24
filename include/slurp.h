@@ -24,6 +24,14 @@ struct slurp_state {
 	struct wl_list outputs; // slurp_output::link
 	struct wl_list pointers; // slurp_pointer::link
 
+	struct {
+		uint32_t background;
+		uint32_t border;
+		uint32_t selection;
+	} colors;
+
+	uint32_t border_weight;
+
 	struct slurp_box result;
 };
 
