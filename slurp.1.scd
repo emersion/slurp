@@ -19,6 +19,9 @@ select, or click to cancel the selection.
 *-h*
 	Show help message and quit.
 
+*-d*
+	Display dimensions of selection.
+
 # AUTHORS
 
 Maintained by Simon Ser <contact@emersion.fr>, who is assisted by other

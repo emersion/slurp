@@ -41,6 +41,7 @@ struct slurp_output {
 	bool configured;
 	bool frame_scheduled;
 	bool dirty;
+	bool display_dimensions;
 	int32_t width, height;
 	struct pool_buffer buffers[2];
 	struct pool_buffer *current_buffer;

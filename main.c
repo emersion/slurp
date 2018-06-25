@@ -320,15 +320,20 @@ static const struct wl_registry_listener registry_listener = {
 static const char usage[] =
 	"Usage: slurp [options...]\n"
 	"\n"
-	"  -h      Show help message and quit.\n";
+	"  -h      Show help message and quit.\n"
+	"  -d      Display dimensions of selection.\n";
 
 int main(int argc, char *argv[]) {
+	bool display_dimensions = false;
 	int opt;
-	while ((opt = getopt(argc, argv, "h")) != -1) {
+	while ((opt = getopt(argc, argv, "hd")) != -1) {
 		switch (opt) {
 		case 'h':
 			printf("%s", usage);
 			return EXIT_SUCCESS;
+		case 'd':
+			display_dimensions = true;
+			break;
 		default:
 			return EXIT_FAILURE;
 		}
@@ -370,6 +375,8 @@ int main(int argc, char *argv[]) {
 	wl_list_for_each(output, &state.outputs, link) {
 		output->surface = wl_compositor_create_surface(state.compositor);
 		// TODO: wl_surface_add_listener(output->surface, &surface_listener, output);
+
+		output->display_dimensions = display_dimensions;
 
 		output->layer_surface = zwlr_layer_shell_v1_get_layer_surface(
 			state.layer_shell, output->surface, output->wl_output,

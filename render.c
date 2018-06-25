@@ -19,6 +19,7 @@ void render(struct slurp_output *output) {
 	struct pool_buffer *buffer = output->current_buffer;
 	cairo_t *cairo = buffer->cairo;
 	int32_t scale = output->scale;
+	bool display_dimensions = output->display_dimensions;
 
 	uint32_t border_color = 0x000000FF;
 	int border_size = 2;
@@ -39,6 +40,17 @@ void render(struct slurp_output *output) {
 
 		int x, y, width, height;
 		pointer_get_box(pointer, &x, &y, &width, &height);
+
+		if (display_dimensions) {
+			cairo_select_font_face(cairo, "Sans", CAIRO_FONT_SLANT_NORMAL,
+				CAIRO_FONT_WEIGHT_NORMAL);
+			cairo_set_font_size(cairo, 14);
+			// buffer of 11 can hold selections up to 99999x99999
+			char dimensions[11];
+			sprintf(dimensions, "%ix%i", width, height);
+			cairo_move_to(cairo, x + width + 15, y + height + 25);
+			cairo_show_text(cairo, dimensions);
+		}
 
 		// Draw border
 		set_source_u32(cairo, border_color);
