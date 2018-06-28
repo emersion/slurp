@@ -45,8 +45,8 @@ void render(struct slurp_output *output) {
 			cairo_select_font_face(cairo, "Sans", CAIRO_FONT_SLANT_NORMAL,
 				CAIRO_FONT_WEIGHT_NORMAL);
 			cairo_set_font_size(cairo, 14);
-			// buffer of 11 can hold selections up to 99999x99999
-			char dimensions[11];
+			// buffer of 12 can hold selections up to 99999x99999
+			char dimensions[12];
 			sprintf(dimensions, "%ix%i", width, height);
 			cairo_move_to(cairo, x + width + 15, y + height + 25);
 			cairo_show_text(cairo, dimensions);
