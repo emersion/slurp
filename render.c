@@ -55,7 +55,7 @@ void render(struct slurp_output *output) {
 			// buffer of 12 can hold selections up to 99999x99999
 			char dimensions[12];
 			snprintf(dimensions, sizeof(dimensions), "%ix%i", width, height);
-			cairo_move_to(cairo, x + width + 15, y + height + 25);
+			cairo_move_to(cairo, x + width + 10, y + height + 20);
 			cairo_show_text(cairo, dimensions);
 		}
 	}
