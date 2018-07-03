@@ -46,5 +46,16 @@ void render(struct slurp_output *output) {
 		cairo_rectangle(cairo, x * scale, y * scale,
 			width * scale, height * scale);
 		cairo_stroke(cairo);
+
+		if (state->display_dimensions) {
+			cairo_select_font_face(cairo, "Sans", CAIRO_FONT_SLANT_NORMAL,
+				CAIRO_FONT_WEIGHT_NORMAL);
+			cairo_set_font_size(cairo, 14 * scale);
+			// buffer of 12 can hold selections up to 99999x99999
+			char dimensions[12];
+			snprintf(dimensions, sizeof(dimensions), "%ix%i", width, height);
+			cairo_move_to(cairo, (x + width + 10) * scale, (y + height + 20) * scale);
+			cairo_show_text(cairo, dimensions);
+		}
 	}
 }

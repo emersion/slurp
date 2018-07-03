@@ -19,6 +19,9 @@ select, or click to cancel the selection.
 *-h*
 	Show help message and quit.
 
+*-d*
+	Display dimensions of selection.
+
 *-b* _color_
 	Set background color. See *COLORS* for more detail.
 

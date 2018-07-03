@@ -31,6 +31,7 @@ struct slurp_state {
 	} colors;
 
 	uint32_t border_weight;
+	bool display_dimensions;
 
 	struct slurp_box result;
 };

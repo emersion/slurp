@@ -332,6 +332,7 @@ static const char usage[] =
 	"Usage: slurp [options...]\n"
 	"\n"
 	"  -h         Show help message and quit.\n"
+	"  -d         Display dimensions of selection.\n"
 	"  -b #rrggbb Set background color.\n"
 	"  -c #rrggbb Set border color.\n"
 	"  -s #rrggbb Set selection color.\n"
@@ -363,14 +364,18 @@ int main(int argc, char *argv[]) {
 			.selection = 0x00000000,
 		},
 		.border_weight = 2,
+		.display_dimensions = false,
 	};
 
 	int opt;
-	while ((opt = getopt(argc, argv, "hb:c:s:w:")) != -1) {
+	while ((opt = getopt(argc, argv, "hdb:c:s:w:")) != -1) {
 		switch (opt) {
 		case 'h':
 			printf("%s", usage);
 			return EXIT_SUCCESS;
+		case 'd':
+			state.display_dimensions = true;
+			break;
 		case 'b':
 			state.colors.background = parse_color(optarg);
 			break;
