@@ -364,9 +364,9 @@ int main(int argc, char *argv[]) {
 			.selection = 0x00000000,
 		},
 		.border_weight = 2,
+		.display_dimensions = false,
 	};
 
-	bool display_dimensions = false;
 	int opt;
 	while ((opt = getopt(argc, argv, "hdb:c:s:w:")) != -1) {
 		switch (opt) {
@@ -374,7 +374,7 @@ int main(int argc, char *argv[]) {
 			printf("%s", usage);
 			return EXIT_SUCCESS;
 		case 'd':
-			display_dimensions = true;
+			state.display_dimensions = true;
 			break;
 		case 'b':
 			state.colors.background = parse_color(optarg);
@@ -436,8 +436,6 @@ int main(int argc, char *argv[]) {
 	wl_list_for_each(output, &state.outputs, link) {
 		output->surface = wl_compositor_create_surface(state.compositor);
 		// TODO: wl_surface_add_listener(output->surface, &surface_listener, output);
-
-		output->display_dimensions = display_dimensions;
 
 		output->layer_surface = zwlr_layer_shell_v1_get_layer_surface(
 			state.layer_shell, output->surface, output->wl_output,

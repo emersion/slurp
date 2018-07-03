@@ -19,7 +19,6 @@ void render(struct slurp_output *output) {
 	struct pool_buffer *buffer = output->current_buffer;
 	cairo_t *cairo = buffer->cairo;
 	int32_t scale = output->scale;
-	bool display_dimensions = output->display_dimensions;
 
 	// Clear
 	cairo_set_operator(cairo, CAIRO_OPERATOR_SOURCE);
@@ -48,7 +47,7 @@ void render(struct slurp_output *output) {
 			width * scale, height * scale);
 		cairo_stroke(cairo);
 
-		if (display_dimensions) {
+		if (state->display_dimensions) {
 			cairo_select_font_face(cairo, "Sans", CAIRO_FONT_SLANT_NORMAL,
 				CAIRO_FONT_WEIGHT_NORMAL);
 			cairo_set_font_size(cairo, 14);
