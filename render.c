@@ -36,17 +36,6 @@ void render(struct slurp_output *output) {
 		int x, y, width, height;
 		pointer_get_box(pointer, &x, &y, &width, &height);
 
-		if (display_dimensions) {
-			cairo_select_font_face(cairo, "Sans", CAIRO_FONT_SLANT_NORMAL,
-				CAIRO_FONT_WEIGHT_NORMAL);
-			cairo_set_font_size(cairo, 14);
-			// buffer of 12 can hold selections up to 99999x99999
-			char dimensions[12];
-			snprintf(dimensions, sizeof(dimensions), "%ix%i", width, height);
-			cairo_move_to(cairo, x + width + 15, y + height + 25);
-			cairo_show_text(cairo, dimensions);
-		}
-
 		// Draw border
 		set_source_u32(cairo, state->colors.selection);
 		cairo_rectangle(cairo, x * scale, y * scale,
@@ -58,5 +47,16 @@ void render(struct slurp_output *output) {
 		cairo_rectangle(cairo, x * scale, y * scale,
 			width * scale, height * scale);
 		cairo_stroke(cairo);
+
+		if (display_dimensions) {
+			cairo_select_font_face(cairo, "Sans", CAIRO_FONT_SLANT_NORMAL,
+				CAIRO_FONT_WEIGHT_NORMAL);
+			cairo_set_font_size(cairo, 14);
+			// buffer of 12 can hold selections up to 99999x99999
+			char dimensions[12];
+			snprintf(dimensions, sizeof(dimensions), "%ix%i", width, height);
+			cairo_move_to(cairo, x + width + 15, y + height + 25);
+			cairo_show_text(cairo, dimensions);
+		}
 	}
 }
