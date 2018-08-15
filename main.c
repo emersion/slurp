@@ -119,6 +119,7 @@ static void create_pointer(struct slurp_state *state,
 
 static void destroy_pointer(struct slurp_pointer *pointer) {
 	wl_list_remove(&pointer->link);
+	wl_surface_destroy(pointer->cursor_surface);
 	wl_pointer_destroy(pointer->wl_pointer);
 	free(pointer);
 }
@@ -196,6 +197,7 @@ static void destroy_output(struct slurp_output *output) {
 	}
 	finish_buffer(&output->buffers[0]);
 	finish_buffer(&output->buffers[1]);
+	wl_cursor_theme_destroy(output->cursor_theme);
 	zwlr_layer_surface_v1_destroy(output->layer_surface);
 	wl_surface_destroy(output->surface);
 	wl_output_destroy(output->wl_output);
