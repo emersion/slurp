@@ -211,6 +211,7 @@ static void destroy_output(struct slurp_output *output) {
 	if (output == NULL) {
 		return;
 	}
+	wl_list_remove(&output->link);
 	finish_buffer(&output->buffers[0]);
 	finish_buffer(&output->buffers[1]);
 	wl_cursor_theme_destroy(output->cursor_theme);
