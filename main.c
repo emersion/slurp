@@ -151,6 +151,22 @@ static const struct wl_seat_listener seat_listener = {
 	.capabilities = seat_handle_capabilities,
 };
 
+static void create_seat(struct slurp_state *state, struct wl_seat *wl_seat) {
+	struct slurp_seat *seat = calloc(1, sizeof(struct slurp_seat));
+	if (seat == NULL) {
+		fprintf(stderr, "allocation failed\n");
+		return;
+	}
+	seat->wl_seat = wl_seat;
+	wl_list_insert(&state->seats, &seat->link);
+	wl_seat_add_listener(wl_seat, &seat_listener, state);
+}
+
+static void destroy_seat(struct slurp_seat *seat) {
+	wl_list_remove(&seat->link);
+	wl_seat_destroy(seat->wl_seat);
+	free(seat);
+}
 
 static void output_handle_geometry(void *data, struct wl_output *wl_output,
 		int32_t x, int32_t y, int32_t physical_width, int32_t physical_height,
@@ -315,9 +331,9 @@ static void handle_global(void *data, struct wl_registry *registry,
 		state->layer_shell = wl_registry_bind(registry, name,
 			&zwlr_layer_shell_v1_interface, 1);
 	} else if (strcmp(interface, wl_seat_interface.name) == 0) {
-		struct wl_seat *seat =
+		struct wl_seat *wl_seat =
 			wl_registry_bind(registry, name, &wl_seat_interface, 1);
-		wl_seat_add_listener(seat, &seat_listener, state);
+		create_seat(state, wl_seat);
 	} else if (strcmp(interface, wl_output_interface.name) == 0) {
 		struct wl_output *wl_output =
 			wl_registry_bind(registry, name, &wl_output_interface, 3);
@@ -405,6 +421,7 @@ int main(int argc, char *argv[]) {
 
 	wl_list_init(&state.outputs);
 	wl_list_init(&state.pointers);
+	wl_list_init(&state.seats);
 
 	state.display = wl_display_connect(NULL);
 	if (state.display == NULL) {
@@ -480,6 +497,10 @@ int main(int argc, char *argv[]) {
 	struct slurp_output *output_tmp;
 	wl_list_for_each_safe(output, output_tmp, &state.outputs, link) {
 		destroy_output(output);
+	}
+	struct slurp_seat *seat, *seat_tmp;
+	wl_list_for_each_safe(seat, seat_tmp, &state.seats, link) {
+		destroy_seat(seat);
 	}
 
 	// Make sure the compositor has unmapped our surfaces by the time we exit
