@@ -1,5 +1,4 @@
 #define _POSIX_C_SOURCE 2
-#include <assert.h>
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -448,10 +447,21 @@ int main(int argc, char *argv[]) {
 
 		output->cursor_theme =
 			wl_cursor_theme_load(NULL, 24 * output->scale, state.shm);
-		assert(output->cursor_theme);
+		if (output->cursor_theme == NULL) {
+			fprintf(stderr, "failed to load cursor theme\n");
+			return EXIT_FAILURE;
+		}
 		struct wl_cursor *cursor =
 			wl_cursor_theme_get_cursor(output->cursor_theme, "crosshair");
-		assert(cursor);
+		if (cursor == NULL) {
+			// Fallback
+			cursor =
+				wl_cursor_theme_get_cursor(output->cursor_theme, "left_ptr");
+		}
+		if (cursor == NULL) {
+			fprintf(stderr, "failed to load cursor\n");
+			return EXIT_FAILURE;
+		}
 		output->cursor_image = cursor->images[0];
 	}
 
