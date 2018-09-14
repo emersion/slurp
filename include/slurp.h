@@ -23,6 +23,7 @@ struct slurp_state {
 	struct zwlr_layer_shell_v1 *layer_shell;
 	struct wl_list outputs; // slurp_output::link
 	struct wl_list pointers; // slurp_pointer::link
+	struct wl_list seats; // slurp_seat::link
 
 	struct {
 		uint32_t background;
@@ -31,6 +32,7 @@ struct slurp_state {
 	} colors;
 
 	uint32_t border_weight;
+	bool display_dimensions;
 
 	struct slurp_box result;
 };
@@ -68,6 +70,11 @@ struct slurp_pointer {
 	struct slurp_output *current_output;
 
 	struct wl_surface *cursor_surface;
+};
+
+struct slurp_seat {
+	struct wl_seat *wl_seat;
+	struct wl_list link; // slurp_state::seats
 };
 
 void pointer_get_box(struct slurp_pointer *pointer, int *x, int *y,
