@@ -15,7 +15,10 @@ add_project_arguments('-Wno-unused-parameter', language: 'c')
 
 slurp_inc = include_directories('include')
 
+cc = meson.get_compiler('c')
+
 cairo = dependency('cairo')
+realtime = cc.find_library('rt')
 wayland_client = dependency('wayland-client')
 wayland_cursor = dependency('wayland-cursor')
 wayland_protos = dependency('wayland-protocols', version: '>=1.14')
@@ -32,6 +35,7 @@ executable(
 	dependencies: [
 		cairo,
 		client_protos,
+		realtime,
 		wayland_client,
 		wayland_cursor,
 	],
