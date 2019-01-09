@@ -6,7 +6,6 @@
 #include <unistd.h>
 #include <wayland-cursor.h>
 #include <linux/input-event-codes.h>
-#endif
 
 #include "slurp.h"
 #include "render.h"
