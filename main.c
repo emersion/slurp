@@ -5,10 +5,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <wayland-cursor.h>
-#ifdef __linux__
 #include <linux/input-event-codes.h>
-#elif __FreeBSD__
-#include <dev/evdev/input-event-codes.h>
 #endif
 
 #include "slurp.h"
