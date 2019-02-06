@@ -11,6 +11,7 @@ Install dependencies:
 * meson
 * wayland
 * cairo
+* scdoc (optional: man pages)
 
 Then run:
 
