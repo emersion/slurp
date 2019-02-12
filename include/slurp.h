@@ -48,8 +48,8 @@ struct slurp_output {
 	struct wl_surface *surface;
 	struct zwlr_layer_surface_v1 *layer_surface;
 
+	struct wl_callback *frame_callback;
 	bool configured;
-	bool frame_scheduled;
 	bool dirty;
 	int32_t width, height;
 	struct pool_buffer buffers[2];

@@ -212,6 +212,9 @@ static void destroy_output(struct slurp_output *output) {
 	wl_cursor_theme_destroy(output->cursor_theme);
 	zwlr_layer_surface_v1_destroy(output->layer_surface);
 	wl_surface_destroy(output->surface);
+	if (output->frame_callback) {
+		wl_callback_destroy(output->frame_callback);
+	}
 	wl_output_destroy(output->wl_output);
 	free(output);
 }
@@ -237,9 +240,8 @@ static void send_frame(struct slurp_output *output) {
 	render(output);
 
 	// Schedule a frame in case the output becomes dirty again
-	struct wl_callback *callback = wl_surface_frame(output->surface);
-	wl_callback_add_listener(callback, &output_frame_listener, output);
-	output->frame_scheduled = true;
+	output->frame_callback = wl_surface_frame(output->surface);
+	wl_callback_add_listener(output->frame_callback, &output_frame_listener, output);
 
 	wl_surface_attach(output->surface, output->current_buffer->buffer, 0, 0);
 	wl_surface_damage(output->surface, 0, 0, output->width, output->height);
@@ -253,7 +255,7 @@ static void output_frame_handle_done(void *data, struct wl_callback *callback,
 	struct slurp_output *output = data;
 
 	wl_callback_destroy(callback);
-	output->frame_scheduled = false;
+	output->frame_callback = NULL;
 
 	if (output->dirty) {
 		send_frame(output);
@@ -266,14 +268,13 @@ static const struct wl_callback_listener output_frame_listener = {
 
 static void set_output_dirty(struct slurp_output *output) {
 	output->dirty = true;
-	if (output->frame_scheduled) {
+	if (output->frame_callback) {
 		return;
 	}
 
-	struct wl_callback *callback = wl_surface_frame(output->surface);
-	wl_callback_add_listener(callback, &output_frame_listener, output);
+	output->frame_callback = wl_surface_frame(output->surface);
+	wl_callback_add_listener(output->frame_callback, &output_frame_listener, output);
 	wl_surface_commit(output->surface);
-	output->frame_scheduled = true;
 }
 
 static struct slurp_output *output_from_surface(struct slurp_state *state,
