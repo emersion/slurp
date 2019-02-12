@@ -131,6 +131,24 @@ void pointer_get_box(struct slurp_pointer *pointer, int *x, int *y,
 	*height = abs(pointer->y - pointer->pressed_y);
 }
 
+static void keyboard_handle_key(void *data, struct wl_keyboard *wl_keyboard,
+	uint32_t serial, uint32_t time, uint32_t key, uint32_t key_state) {
+	struct slurp_state *state = data;
+	if (key_state == WL_KEYBOARD_KEY_STATE_PRESSED) {
+		if (key == KEY_ESC) {
+			state->running = false;
+		}
+	}
+}
+
+static const struct wl_keyboard_listener keyboard_listener = {
+	.keymap = noop,
+	.enter = noop,
+	.leave = noop,
+	.key = keyboard_handle_key,
+	.modifiers = noop,
+};
+
 
 static void seat_handle_capabilities(void *data, struct wl_seat *seat,
 		uint32_t capabilities) {
@@ -139,6 +157,10 @@ static void seat_handle_capabilities(void *data, struct wl_seat *seat,
 	if (capabilities & WL_SEAT_CAPABILITY_POINTER) {
 		struct wl_pointer *wl_pointer = wl_seat_get_pointer(seat);
 		create_pointer(state, wl_pointer);
+	}
+	if (capabilities & WL_SEAT_CAPABILITY_KEYBOARD) {
+		struct wl_keyboard *wl_keyboard = wl_seat_get_keyboard(seat);
+		wl_keyboard_add_listener(wl_keyboard, &keyboard_listener, state);
 	}
 }
 
@@ -464,6 +486,7 @@ int main(int argc, char *argv[]) {
 			ZWLR_LAYER_SURFACE_V1_ANCHOR_LEFT |
 			ZWLR_LAYER_SURFACE_V1_ANCHOR_RIGHT |
 			ZWLR_LAYER_SURFACE_V1_ANCHOR_BOTTOM);
+		zwlr_layer_surface_v1_set_keyboard_interactivity(output->layer_surface, true);
 		zwlr_layer_surface_v1_set_exclusive_zone(output->layer_surface, -1);
 		wl_surface_commit(output->surface);
 
