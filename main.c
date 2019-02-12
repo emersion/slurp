@@ -23,67 +23,66 @@ static struct slurp_output *output_from_surface(struct slurp_state *state,
 static void pointer_handle_enter(void *data, struct wl_pointer *wl_pointer,
 		uint32_t serial, struct wl_surface *surface,
 		wl_fixed_t surface_x, wl_fixed_t surface_y) {
-	struct slurp_pointer *pointer = data;
-	struct slurp_output *output = output_from_surface(pointer->state, surface);
+	struct slurp_seat *seat = data;
+	struct slurp_output *output = output_from_surface(seat->state, surface);
 	if (output == NULL) {
 		return;
 	}
 
-	pointer->x = wl_fixed_to_int(surface_x);
-	pointer->y = wl_fixed_to_int(surface_y);
+	seat->x = wl_fixed_to_int(surface_x);
+	seat->y = wl_fixed_to_int(surface_y);
 
 	// TODO: handle multiple overlapping outputs
-	pointer->current_output = output;
+	seat->current_output = output;
 
-	wl_surface_set_buffer_scale(pointer->cursor_surface, output->scale);
-	wl_surface_attach(pointer->cursor_surface,
+	wl_surface_set_buffer_scale(seat->cursor_surface, output->scale);
+	wl_surface_attach(seat->cursor_surface,
 			wl_cursor_image_get_buffer(output->cursor_image), 0, 0);
-	wl_pointer_set_cursor(wl_pointer, serial, pointer->cursor_surface,
+	wl_pointer_set_cursor(wl_pointer, serial, seat->cursor_surface,
 			output->cursor_image->hotspot_x / output->scale,
 			output->cursor_image->hotspot_y / output->scale);
-	wl_surface_commit(pointer->cursor_surface);
+	wl_surface_commit(seat->cursor_surface);
 }
 
 static void pointer_handle_leave(void *data, struct wl_pointer *wl_pointer,
 		uint32_t serial, struct wl_surface *surface) {
-	struct slurp_pointer *pointer = data;
+	struct slurp_seat *seat = data;
 
 	// TODO: handle multiple overlapping outputs
-	pointer->current_output = NULL;
+	seat->current_output = NULL;
 }
 
 static void pointer_handle_motion(void *data, struct wl_pointer *wl_pointer,
 		uint32_t time, wl_fixed_t surface_x, wl_fixed_t surface_y) {
-	struct slurp_pointer *pointer = data;
+	struct slurp_seat *seat = data;
 
-	pointer->x = wl_fixed_to_int(surface_x);
-	pointer->y = wl_fixed_to_int(surface_y);
+	seat->x = wl_fixed_to_int(surface_x);
+	seat->y = wl_fixed_to_int(surface_y);
 
-	if (pointer->button_state == WL_POINTER_BUTTON_STATE_PRESSED &&
-			pointer->current_output != NULL) {
-		set_output_dirty(pointer->current_output);
+	if (seat->button_state == WL_POINTER_BUTTON_STATE_PRESSED &&
+			seat->current_output != NULL) {
+		set_output_dirty(seat->current_output);
 	}
 }
 
 static void pointer_handle_button(void *data, struct wl_pointer *wl_pointer,
 		uint32_t serial, uint32_t time, uint32_t button,
 		uint32_t button_state) {
-	struct slurp_pointer *pointer = data;
-	struct slurp_state *state = pointer->state;
+	struct slurp_seat *seat = data;
+	struct slurp_state *state = seat->state;
 
-	pointer->button_state = button_state;
+	seat->button_state = button_state;
 
 	switch (button_state) {
 	case WL_POINTER_BUTTON_STATE_PRESSED:
-		pointer->pressed_x = pointer->x;
-		pointer->pressed_y = pointer->y;
+		seat->pressed_x = seat->x;
+		seat->pressed_y = seat->y;
 		break;
 	case WL_POINTER_BUTTON_STATE_RELEASED:
-		pointer_get_box(pointer, &state->result.x, &state->result.y,
-			&state->result.width, &state->result.height);
-		if (pointer->current_output != NULL) {
-			state->result.x += pointer->current_output->geometry.x;
-			state->result.y += pointer->current_output->geometry.y;
+		seat_get_box(seat, &state->result);
+		if (seat->current_output != NULL) {
+			state->result.x += seat->current_output->geometry.x;
+			state->result.y += seat->current_output->geometry.y;
 		}
 		state->running = false;
 		break;
@@ -98,42 +97,21 @@ static const struct wl_pointer_listener pointer_listener = {
 	.axis = noop,
 };
 
-static void create_pointer(struct slurp_state *state,
-		struct wl_pointer *wl_pointer) {
-	struct slurp_pointer *pointer = calloc(1, sizeof(struct slurp_pointer));
-	if (pointer == NULL) {
-		fprintf(stderr, "allocation failed\n");
-		return;
-	}
-	pointer->state = state;
-	pointer->wl_pointer = wl_pointer;
-	wl_list_insert(&state->pointers, &pointer->link);
-
-	wl_pointer_add_listener(wl_pointer, &pointer_listener, pointer);
-}
-
-static void destroy_pointer(struct slurp_pointer *pointer) {
-	wl_list_remove(&pointer->link);
-	wl_surface_destroy(pointer->cursor_surface);
-	wl_pointer_destroy(pointer->wl_pointer);
-	free(pointer);
-}
-
 static int min(int a, int b) {
 	return (a < b) ? a : b;
 }
 
-void pointer_get_box(struct slurp_pointer *pointer, int *x, int *y,
-		int *width, int *height) {
-	*x = min(pointer->pressed_x, pointer->x);
-	*y = min(pointer->pressed_y, pointer->y);
-	*width = abs(pointer->x - pointer->pressed_x);
-	*height = abs(pointer->y - pointer->pressed_y);
+void seat_get_box(struct slurp_seat *seat, struct slurp_box * result) {
+	result->x = min(seat->pressed_x, seat->x);
+	result->y = min(seat->pressed_y, seat->y);
+	result->width = abs(seat->x - seat->pressed_x);
+	result->height = abs(seat->y - seat->pressed_y);
 }
 
 static void keyboard_handle_key(void *data, struct wl_keyboard *wl_keyboard,
 	uint32_t serial, uint32_t time, uint32_t key, uint32_t key_state) {
-	struct slurp_state *state = data;
+	struct slurp_seat *seat = data;
+	struct slurp_state *state = seat->state;
 	if (key_state == WL_KEYBOARD_KEY_STATE_PRESSED) {
 		if (key == KEY_ESC) {
 			state->running = false;
@@ -150,17 +128,17 @@ static const struct wl_keyboard_listener keyboard_listener = {
 };
 
 
-static void seat_handle_capabilities(void *data, struct wl_seat *seat,
+static void seat_handle_capabilities(void *data, struct wl_seat *wl_seat,
 		uint32_t capabilities) {
-	struct slurp_state *state = data;
+	struct slurp_seat *seat = data;
 
 	if (capabilities & WL_SEAT_CAPABILITY_POINTER) {
-		struct wl_pointer *wl_pointer = wl_seat_get_pointer(seat);
-		create_pointer(state, wl_pointer);
+		seat->wl_pointer = wl_seat_get_pointer(wl_seat);
+		wl_pointer_add_listener(seat->wl_pointer, &pointer_listener, seat);
 	}
 	if (capabilities & WL_SEAT_CAPABILITY_KEYBOARD) {
-		struct wl_keyboard *wl_keyboard = wl_seat_get_keyboard(seat);
-		wl_keyboard_add_listener(wl_keyboard, &keyboard_listener, state);
+		seat->wl_keyboard = wl_seat_get_keyboard(wl_seat);
+		wl_keyboard_add_listener(seat->wl_keyboard, &keyboard_listener, seat);
 	}
 }
 
@@ -174,13 +152,23 @@ static void create_seat(struct slurp_state *state, struct wl_seat *wl_seat) {
 		fprintf(stderr, "allocation failed\n");
 		return;
 	}
+	seat->state = state;
+	seat->wl_pointer = NULL;
+	seat->wl_keyboard = NULL;
 	seat->wl_seat = wl_seat;
 	wl_list_insert(&state->seats, &seat->link);
-	wl_seat_add_listener(wl_seat, &seat_listener, state);
+	wl_seat_add_listener(wl_seat, &seat_listener, seat);
 }
 
 static void destroy_seat(struct slurp_seat *seat) {
 	wl_list_remove(&seat->link);
+	wl_surface_destroy(seat->cursor_surface);
+	if (seat->wl_pointer) {
+		wl_pointer_destroy(seat->wl_pointer);
+	}
+	if (seat->wl_keyboard) {
+		wl_keyboard_destroy(seat->wl_keyboard);
+	}
 	wl_seat_destroy(seat->wl_seat);
 	free(seat);
 }
@@ -439,7 +427,6 @@ int main(int argc, char *argv[]) {
 	}
 
 	wl_list_init(&state.outputs);
-	wl_list_init(&state.pointers);
 	wl_list_init(&state.seats);
 
 	state.display = wl_display_connect(NULL);
@@ -510,9 +497,9 @@ int main(int argc, char *argv[]) {
 		output->cursor_image = cursor->images[0];
 	}
 
-	struct slurp_pointer *pointer;
-	wl_list_for_each(pointer, &state.pointers, link) {
-		pointer->cursor_surface =
+	struct slurp_seat *seat;
+	wl_list_for_each(seat, &state.seats, link) {
+		seat->cursor_surface =
 			wl_compositor_create_surface(state.compositor);
 	}
 
@@ -521,15 +508,11 @@ int main(int argc, char *argv[]) {
 		// This space intentionally left blank
 	}
 
-	struct slurp_pointer *pointer_tmp;
-	wl_list_for_each_safe(pointer, pointer_tmp, &state.pointers, link) {
-		destroy_pointer(pointer);
-	}
 	struct slurp_output *output_tmp;
 	wl_list_for_each_safe(output, output_tmp, &state.outputs, link) {
 		destroy_output(output);
 	}
-	struct slurp_seat *seat, *seat_tmp;
+	struct slurp_seat *seat_tmp;
 	wl_list_for_each_safe(seat, seat_tmp, &state.seats, link) {
 		destroy_seat(seat);
 	}

@@ -22,7 +22,6 @@ struct slurp_state {
 	struct wl_compositor *compositor;
 	struct zwlr_layer_shell_v1 *layer_shell;
 	struct wl_list outputs; // slurp_output::link
-	struct wl_list pointers; // slurp_pointer::link
 	struct wl_list seats; // slurp_seat::link
 
 	struct {
@@ -59,25 +58,23 @@ struct slurp_output {
 	struct wl_cursor_image *cursor_image;
 };
 
-struct slurp_pointer {
-	struct slurp_state *state;
-	struct wl_pointer *wl_pointer;
-	struct wl_list link; // slurp_state::pointers
-
-	int32_t x, y;
-	int32_t pressed_x, pressed_y;
-	enum wl_pointer_button_state button_state;
-	struct slurp_output *current_output;
-
-	struct wl_surface *cursor_surface;
-};
-
 struct slurp_seat {
+	struct wl_surface *cursor_surface;
+	struct slurp_state *state;
 	struct wl_seat *wl_seat;
 	struct wl_list link; // slurp_state::seats
+
+	// keyboard:
+	struct wl_keyboard *wl_keyboard;
+
+	// pointer:
+	struct wl_pointer *wl_pointer;
+	enum wl_pointer_button_state button_state;
+	struct slurp_output *current_output;
+	int32_t x, y;
+	int32_t pressed_x, pressed_y;
 };
 
-void pointer_get_box(struct slurp_pointer *pointer, int *x, int *y,
-	int *width, int *height);
+void seat_get_box(struct slurp_seat *seat, struct slurp_box * result);
 
 #endif
