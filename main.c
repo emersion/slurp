@@ -200,7 +200,6 @@ static void output_handle_mode(void *data, struct wl_output *wl_output,
 															 uint32_t flags, int32_t width, int32_t height, int32_t refresh) {
 	struct slurp_output *output = data;
 
-	// todo: scale?
 	output->geometry.width = width;
 	output->geometry.height = height;
 }
@@ -211,11 +210,16 @@ static void output_handle_scale(void *data, struct wl_output *wl_output,
 
 	output->scale = scale;
 }
+static void output_handle_done(void *data, struct wl_output *wl_output) {
+	struct slurp_output *output = data;
+	output->geometry.width /= output->scale;
+	output->geometry.height /= output->scale;
+}
 
 static const struct wl_output_listener output_listener = {
 	.geometry = output_handle_geometry,
 	.mode = output_handle_mode,
-	.done = noop,
+	.done = output_handle_done,
 	.scale = output_handle_scale,
 };
 
