@@ -25,26 +25,27 @@ void render(struct slurp_output *output) {
 	set_source_u32(cairo, state->colors.background);
 	cairo_paint(cairo);
 
-	struct slurp_pointer *pointer;
-	wl_list_for_each(pointer, &state->pointers, link) {
-		if (pointer->button_state != WL_POINTER_BUTTON_STATE_PRESSED ||
-				pointer->current_output != output) {
+	struct slurp_seat *seat;
+	wl_list_for_each(seat, &state->seats, link) {
+		if (!seat->wl_pointer) continue;
+		if (seat->button_state != WL_POINTER_BUTTON_STATE_PRESSED ||
+				seat->current_output != output) {
 			continue;
 		}
 
-		int x, y, width, height;
-		pointer_get_box(pointer, &x, &y, &width, &height);
+		struct slurp_box b;
+		seat_get_box(seat, &b);
 
 		// Draw border
 		set_source_u32(cairo, state->colors.selection);
-		cairo_rectangle(cairo, x * scale, y * scale,
-			width * scale, height * scale);
+		cairo_rectangle(cairo, b.x * scale, b.y * scale,
+			b.width * scale, b.height * scale);
 		cairo_fill(cairo);
 
 		set_source_u32(cairo, state->colors.border);
 		cairo_set_line_width(cairo, state->border_weight * scale);
-		cairo_rectangle(cairo, x * scale, y * scale,
-			width * scale, height * scale);
+		cairo_rectangle(cairo, b.x * scale, b.y * scale,
+			b.width * scale, b.height * scale);
 		cairo_stroke(cairo);
 
 		if (state->display_dimensions) {
@@ -53,8 +54,8 @@ void render(struct slurp_output *output) {
 			cairo_set_font_size(cairo, 14 * scale);
 			// buffer of 12 can hold selections up to 99999x99999
 			char dimensions[12];
-			snprintf(dimensions, sizeof(dimensions), "%ix%i", width, height);
-			cairo_move_to(cairo, (x + width + 10) * scale, (y + height + 20) * scale);
+			snprintf(dimensions, sizeof(dimensions), "%ix%i", b.width, b.height);
+			cairo_move_to(cairo, (b.x + b.width + 10) * scale, (b.y + b.height + 20) * scale);
 			cairo_show_text(cairo, dimensions);
 		}
 	}
