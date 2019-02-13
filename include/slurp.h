@@ -75,6 +75,6 @@ struct slurp_seat {
 	int32_t pressed_x, pressed_y;
 };
 
-void seat_get_box(struct slurp_seat *seat, struct slurp_box * result);
+void seat_get_box(struct slurp_seat *seat, struct slurp_box *result);
 
 #endif

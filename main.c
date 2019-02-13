@@ -101,7 +101,7 @@ static int min(int a, int b) {
 	return (a < b) ? a : b;
 }
 
-void seat_get_box(struct slurp_seat *seat, struct slurp_box * result) {
+void seat_get_box(struct slurp_seat *seat, struct slurp_box *result) {
 	result->x = min(seat->pressed_x, seat->x);
 	result->y = min(seat->pressed_y, seat->y);
 	result->width = abs(seat->x - seat->pressed_x);
@@ -109,7 +109,7 @@ void seat_get_box(struct slurp_seat *seat, struct slurp_box * result) {
 }
 
 static void keyboard_handle_key(void *data, struct wl_keyboard *wl_keyboard,
-	uint32_t serial, uint32_t time, uint32_t key, uint32_t key_state) {
+		uint32_t serial, uint32_t time, uint32_t key, uint32_t key_state) {
 	struct slurp_seat *seat = data;
 	struct slurp_state *state = seat->state;
 	if (key_state == WL_KEYBOARD_KEY_STATE_PRESSED) {
@@ -153,8 +153,6 @@ static void create_seat(struct slurp_state *state, struct wl_seat *wl_seat) {
 		return;
 	}
 	seat->state = state;
-	seat->wl_pointer = NULL;
-	seat->wl_keyboard = NULL;
 	seat->wl_seat = wl_seat;
 	wl_list_insert(&state->seats, &seat->link);
 	wl_seat_add_listener(wl_seat, &seat_listener, seat);
