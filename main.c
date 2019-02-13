@@ -223,6 +223,27 @@ static const struct wl_output_listener output_listener = {
 	.scale = output_handle_scale,
 };
 
+static void xdg_output_handle_logical_position(void *data,
+		struct zxdg_output_v1 *xdg_output, int32_t x, int32_t y) {
+	struct slurp_output *output = data;
+	output->geometry.x = x;
+	output->geometry.y = y;
+}
+static void xdg_output_handle_logical_size(void *data,
+		struct zxdg_output_v1 *xdg_output, int32_t width, int32_t height) {
+	struct slurp_output *output = data;
+	output->geometry.width = width;
+	output->geometry.height = height;
+}
+
+static const struct zxdg_output_v1_listener xdg_output_listener = {
+	.logical_position = xdg_output_handle_logical_position,
+	.logical_size = xdg_output_handle_logical_size,
+	.done = noop,
+	.name = noop,
+	.description = noop,
+};
+
 static void create_output(struct slurp_state *state,
 		struct wl_output *wl_output) {
 	struct slurp_output *output = calloc(1, sizeof(struct slurp_output));
@@ -235,7 +256,12 @@ static void create_output(struct slurp_state *state,
 	output->scale = 1;
 	wl_list_insert(&state->outputs, &output->link);
 
-	wl_output_add_listener(wl_output, &output_listener, output);
+	if (state->xdg_output_manager) {
+		output->xdg_output = zxdg_output_manager_v1_get_xdg_output(state->xdg_output_manager, output->wl_output);
+		zxdg_output_v1_add_listener(output->xdg_output, &xdg_output_listener, output);
+	} else {
+		wl_output_add_listener(wl_output, &output_listener, output);
+	}
 }
 
 static void destroy_output(struct slurp_output *output) {
@@ -247,6 +273,9 @@ static void destroy_output(struct slurp_output *output) {
 	finish_buffer(&output->buffers[1]);
 	wl_cursor_theme_destroy(output->cursor_theme);
 	zwlr_layer_surface_v1_destroy(output->layer_surface);
+	if (output->xdg_output) {
+		zxdg_output_v1_destroy(output->xdg_output);
+	}
 	wl_surface_destroy(output->surface);
 	if (output->frame_callback) {
 		wl_callback_destroy(output->frame_callback);
@@ -371,6 +400,8 @@ static void handle_global(void *data, struct wl_registry *registry,
 		struct wl_output *wl_output =
 			wl_registry_bind(registry, name, &wl_output_interface, 3);
 		create_output(state, wl_output);
+	} else if (strcmp(interface, zxdg_output_manager_v1_interface.name) == 0) {
+		state->xdg_output_manager = wl_registry_bind(registry, name, &zxdg_output_manager_v1_interface, (version > 2 ? 2 : version));
 	}
 }
 
@@ -477,6 +508,9 @@ int main(int argc, char *argv[]) {
 	if (state.layer_shell == NULL) {
 		fprintf(stderr, "compositor doesn't support zwlr_layer_shell_v1\n");
 		return EXIT_FAILURE;
+	}
+	if (state.xdg_output_manager == NULL) {
+		fprintf(stderr, "compositor doesn't support xdg-output. Guessing geometry from physical output size.\n");
 	}
 	if (wl_list_empty(&state.outputs)) {
 		fprintf(stderr, "no wl_output\n");

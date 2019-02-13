@@ -7,6 +7,7 @@
 
 #include "pool-buffer.h"
 #include "wlr-layer-shell-unstable-v1-client-protocol.h"
+#include "xdg-output-unstable-v1-client-protocol.h"
 
 struct slurp_box {
 	int32_t x, y;
@@ -21,6 +22,7 @@ struct slurp_state {
 	struct wl_shm *shm;
 	struct wl_compositor *compositor;
 	struct zwlr_layer_shell_v1 *layer_shell;
+	struct zxdg_output_manager_v1 *xdg_output_manager;
 	struct wl_list outputs; // slurp_output::link
 	struct wl_list seats; // slurp_seat::link
 
@@ -46,6 +48,8 @@ struct slurp_output {
 
 	struct wl_surface *surface;
 	struct zwlr_layer_surface_v1 *layer_surface;
+
+	struct zxdg_output_v1 *xdg_output;
 
 	struct wl_callback *frame_callback;
 	bool configured;
