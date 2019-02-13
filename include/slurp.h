@@ -14,6 +14,11 @@ struct slurp_box {
 	int32_t width, height;
 };
 
+struct slurp_box_ll {
+	struct slurp_box b;
+	struct slurp_box_ll *next;
+};
+
 struct slurp_state {
 	bool running;
 
@@ -35,6 +40,7 @@ struct slurp_state {
 	uint32_t border_weight;
 	bool display_dimensions;
 	bool single_point;
+	struct slurp_box_ll *boxes;
 
 	struct slurp_box result;
 };
@@ -79,8 +85,9 @@ struct slurp_seat {
 	struct slurp_output *current_output;
 	int32_t x, y;
 	int32_t pressed_x, pressed_y;
+	struct slurp_box selection;
+	bool has_selection;
 };
 
-void seat_get_box(struct slurp_seat *seat, struct slurp_box *result);
 bool box_intersect(const struct slurp_box *a, const struct slurp_box *b);
 #endif

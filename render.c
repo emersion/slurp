@@ -28,15 +28,14 @@ void render(struct slurp_output *output) {
 	struct slurp_seat *seat;
 	wl_list_for_each(seat, &state->seats, link) {
 		if (!seat->wl_pointer) continue;
-		if (seat->button_state != WL_POINTER_BUTTON_STATE_PRESSED) {
+		if (!seat->has_selection) {
 			continue;
 		}
 
-		struct slurp_box b;
-		seat_get_box(seat, &b);
-		if (!box_intersect(&output->logical_geometry, &b)) {
+		if(!box_intersect(&output->logical_geometry, &seat->selection)) {
 			continue;
 		}
+		struct slurp_box b = seat->selection;
 		b.x -= output->logical_geometry.x;
 		b.y -= output->logical_geometry.y;
 
