@@ -38,8 +38,8 @@ static void pointer_handle_enter(void *data, struct wl_pointer *wl_pointer,
 	// TODO: handle multiple overlapping outputs
 	seat->current_output = output;
 
-	seat->x = wl_fixed_to_int(surface_x) + seat->current_output->geometry.x;
-	seat->y = wl_fixed_to_int(surface_y) + seat->current_output->geometry.y;
+	seat->x = wl_fixed_to_int(surface_x) + seat->current_output->logical_geometry.x;
+	seat->y = wl_fixed_to_int(surface_y) + seat->current_output->logical_geometry.y;
 
 
 	wl_surface_set_buffer_scale(seat->cursor_surface, output->scale);
@@ -67,7 +67,7 @@ static void seat_set_outputs_dirty(struct slurp_seat *seat) {
 	seat_get_box(seat, &box);
 	struct slurp_output *output;
 	wl_list_for_each(output, &seat->state->outputs, link) {
-		if (box_intersect(&output->geometry, &box)) {
+		if (box_intersect(&output->logical_geometry, &box)) {
 			set_output_dirty(output);
 		}
 	}
@@ -79,8 +79,8 @@ static void pointer_handle_motion(void *data, struct wl_pointer *wl_pointer,
 	// the places the cursor moved away from are also dirty
 	seat_set_outputs_dirty(seat);
 
-	seat->x = wl_fixed_to_int(surface_x) + seat->current_output->geometry.x;
-	seat->y = wl_fixed_to_int(surface_y) + seat->current_output->geometry.y;
+	seat->x = wl_fixed_to_int(surface_x) + seat->current_output->logical_geometry.x;
+	seat->y = wl_fixed_to_int(surface_y) + seat->current_output->logical_geometry.y;
 
 	seat_set_outputs_dirty(seat);
 
@@ -228,14 +228,14 @@ static const struct wl_output_listener output_listener = {
 static void xdg_output_handle_logical_position(void *data,
 		struct zxdg_output_v1 *xdg_output, int32_t x, int32_t y) {
 	struct slurp_output *output = data;
-	output->geometry.x = x;
-	output->geometry.y = y;
+	output->logical_geometry.x = x;
+	output->logical_geometry.y = y;
 }
 static void xdg_output_handle_logical_size(void *data,
 		struct zxdg_output_v1 *xdg_output, int32_t width, int32_t height) {
 	struct slurp_output *output = data;
-	output->geometry.width = width;
-	output->geometry.height = height;
+	output->logical_geometry.width = width;
+	output->logical_geometry.height = height;
 }
 
 static const struct zxdg_output_v1_listener xdg_output_listener = {
@@ -258,12 +258,7 @@ static void create_output(struct slurp_state *state,
 	output->scale = 1;
 	wl_list_insert(&state->outputs, &output->link);
 
-	if (state->xdg_output_manager) {
-		output->xdg_output = zxdg_output_manager_v1_get_xdg_output(state->xdg_output_manager, output->wl_output);
-		zxdg_output_v1_add_listener(output->xdg_output, &xdg_output_listener, output);
-	} else {
-		wl_output_add_listener(wl_output, &output_listener, output);
-	}
+	wl_output_add_listener(wl_output, &output_listener, output);
 }
 
 static void destroy_output(struct slurp_output *output) {
@@ -528,7 +523,15 @@ int main(int argc, char *argv[]) {
 			state.layer_shell, output->surface, output->wl_output,
 			ZWLR_LAYER_SHELL_V1_LAYER_OVERLAY, "selection");
 		zwlr_layer_surface_v1_add_listener(output->layer_surface,
-			&layer_surface_listener, output);
+		  &layer_surface_listener, output);
+
+		if (state.xdg_output_manager) {
+			output->xdg_output = zxdg_output_manager_v1_get_xdg_output(state.xdg_output_manager, output->wl_output);
+			zxdg_output_v1_add_listener(output->xdg_output, &xdg_output_listener, output);
+		} else {
+			// guess
+			output->logical_geometry = output->geometry;
+		}
 
 		zwlr_layer_surface_v1_set_anchor(output->layer_surface,
 			ZWLR_LAYER_SURFACE_V1_ANCHOR_TOP |
@@ -558,6 +561,7 @@ int main(int argc, char *argv[]) {
 		}
 		output->cursor_image = cursor->images[0];
 	}
+	wl_display_roundtrip(state.display);
 
 	struct slurp_seat *seat;
 	wl_list_for_each(seat, &state.seats, link) {

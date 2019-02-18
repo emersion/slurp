@@ -44,6 +44,7 @@ struct slurp_output {
 	struct wl_list link; // slurp_state::outputs
 
 	struct slurp_box geometry;
+	struct slurp_box logical_geometry;
 	int32_t scale;
 
 	struct wl_surface *surface;
