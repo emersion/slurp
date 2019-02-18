@@ -194,16 +194,18 @@ static void output_handle_geometry(void *data, struct wl_output *wl_output,
 		int32_t transform) {
 	struct slurp_output *output = data;
 
-	output->geometry.x = x;
-	output->geometry.y = y;
+	output->raw_geometry.x = x;
+	output->raw_geometry.y = y;
 }
 
 static void output_handle_mode(void *data, struct wl_output *wl_output,
 		uint32_t flags, int32_t width, int32_t height, int32_t refresh) {
 	struct slurp_output *output = data;
-
-	output->geometry.width = width;
-	output->geometry.height = height;
+	if ((flags & WL_OUTPUT_MODE_CURRENT) == 0) {
+		return;
+	}
+	output->raw_geometry.width = width;
+	output->raw_geometry.height = height;
 }
 
 static void output_handle_scale(void *data, struct wl_output *wl_output,
@@ -214,6 +216,7 @@ static void output_handle_scale(void *data, struct wl_output *wl_output,
 }
 static void output_handle_done(void *data, struct wl_output *wl_output) {
 	struct slurp_output *output = data;
+	output->geometry = output->raw_geometry;
 	output->geometry.width /= output->scale;
 	output->geometry.height /= output->scale;
 }
@@ -398,7 +401,7 @@ static void handle_global(void *data, struct wl_registry *registry,
 			wl_registry_bind(registry, name, &wl_output_interface, 3);
 		create_output(state, wl_output);
 	} else if (strcmp(interface, zxdg_output_manager_v1_interface.name) == 0) {
-		state->xdg_output_manager = wl_registry_bind(registry, name, &zxdg_output_manager_v1_interface, (version > 2 ? 2 : version));
+		state->xdg_output_manager = wl_registry_bind(registry, name, &zxdg_output_manager_v1_interface, 1);
 	}
 }
 
@@ -526,7 +529,8 @@ int main(int argc, char *argv[]) {
 		  &layer_surface_listener, output);
 
 		if (state.xdg_output_manager) {
-			output->xdg_output = zxdg_output_manager_v1_get_xdg_output(state.xdg_output_manager, output->wl_output);
+			output->xdg_output = zxdg_output_manager_v1_get_xdg_output(
+				state.xdg_output_manager, output->wl_output);
 			zxdg_output_v1_add_listener(output->xdg_output, &xdg_output_listener, output);
 		} else {
 			// guess
@@ -561,6 +565,7 @@ int main(int argc, char *argv[]) {
 		}
 		output->cursor_image = cursor->images[0];
 	}
+	// second roundtrip for xdg-output
 	wl_display_roundtrip(state.display);
 
 	struct slurp_seat *seat;
