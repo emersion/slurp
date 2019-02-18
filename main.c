@@ -17,12 +17,13 @@ static void noop() {
 
 static void set_output_dirty(struct slurp_output *output);
 
-bool box_intersect(struct slurp_box *a, struct slurp_box *b) {
+bool box_intersect(const struct slurp_box *a, const struct slurp_box *b) {
 	return (a->x < b->x + b->width &&
-					a->x + a->width > b->x &&
-					a->y < b->y + b->height &&
-					a->height + a->y > b->y);
+	        a->x + a->width > b->x &&
+	        a->y < b->y + b->height &&
+	        a->height + a->y > b->y);
 }
+
 static struct slurp_output *output_from_surface(struct slurp_state *state,
 	struct wl_surface *surface);
 
@@ -58,15 +59,16 @@ static void pointer_handle_leave(void *data, struct wl_pointer *wl_pointer,
 	seat->current_output = NULL;
 }
 
-static void seat_set_outputs_dirty(struct slurp_seat* seat) {
-	if (seat->button_state == WL_POINTER_BUTTON_STATE_PRESSED) {
-		struct slurp_box box;
-		seat_get_box(seat, &box);
-		struct slurp_output *output;
-		wl_list_for_each(output, &seat->state->outputs, link) {
-			if(box_intersect(&output->geometry, &box)) {
-				set_output_dirty(output);
-			}
+static void seat_set_outputs_dirty(struct slurp_seat *seat) {
+	if (seat->button_state != WL_POINTER_BUTTON_STATE_PRESSED) {
+		return;
+	}
+	struct slurp_box box;
+	seat_get_box(seat, &box);
+	struct slurp_output *output;
+	wl_list_for_each(output, &seat->state->outputs, link) {
+		if (box_intersect(&output->geometry, &box)) {
+			set_output_dirty(output);
 		}
 	}
 }
@@ -197,7 +199,7 @@ static void output_handle_geometry(void *data, struct wl_output *wl_output,
 }
 
 static void output_handle_mode(void *data, struct wl_output *wl_output,
-															 uint32_t flags, int32_t width, int32_t height, int32_t refresh) {
+		uint32_t flags, int32_t width, int32_t height, int32_t refresh) {
 	struct slurp_output *output = data;
 
 	output->geometry.width = width;

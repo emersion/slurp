@@ -34,7 +34,9 @@ void render(struct slurp_output *output) {
 
 		struct slurp_box b;
 		seat_get_box(seat, &b);
-		if(!box_intersect(&output->geometry, &b)) continue;
+		if (!box_intersect(&output->geometry, &b)) {
+      continue;
+    }
 		b.x -= output->geometry.x;
 		b.y -= output->geometry.y;
 

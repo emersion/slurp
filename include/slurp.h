@@ -80,5 +80,5 @@ struct slurp_seat {
 };
 
 void seat_get_box(struct slurp_seat *seat, struct slurp_box *result);
-bool box_intersect(struct slurp_box *a, struct slurp_box *b);
+bool box_intersect(const struct slurp_box *a, const struct slurp_box *b);
 #endif
