@@ -28,13 +28,17 @@ void render(struct slurp_output *output) {
 	struct slurp_seat *seat;
 	wl_list_for_each(seat, &state->seats, link) {
 		if (!seat->wl_pointer) continue;
-		if (seat->button_state != WL_POINTER_BUTTON_STATE_PRESSED ||
-				seat->current_output != output) {
+		if (seat->button_state != WL_POINTER_BUTTON_STATE_PRESSED) {
 			continue;
 		}
 
 		struct slurp_box b;
 		seat_get_box(seat, &b);
+		if (!box_intersect(&output->logical_geometry, &b)) {
+			continue;
+		}
+		b.x -= output->logical_geometry.x;
+		b.y -= output->logical_geometry.y;
 
 		// Draw border
 		set_source_u32(cairo, state->colors.selection);

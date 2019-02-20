@@ -17,6 +17,13 @@ static void noop() {
 
 static void set_output_dirty(struct slurp_output *output);
 
+bool box_intersect(const struct slurp_box *a, const struct slurp_box *b) {
+	return (a->x < b->x + b->width &&
+	        a->x + a->width > b->x &&
+	        a->y < b->y + b->height &&
+	        a->height + a->y > b->y);
+}
+
 static struct slurp_output *output_from_surface(struct slurp_state *state,
 	struct wl_surface *surface);
 
@@ -28,12 +35,11 @@ static void pointer_handle_enter(void *data, struct wl_pointer *wl_pointer,
 	if (output == NULL) {
 		return;
 	}
-
-	seat->x = wl_fixed_to_int(surface_x);
-	seat->y = wl_fixed_to_int(surface_y);
-
 	// TODO: handle multiple overlapping outputs
 	seat->current_output = output;
+
+	seat->x = wl_fixed_to_int(surface_x) + seat->current_output->logical_geometry.x;
+	seat->y = wl_fixed_to_int(surface_y) + seat->current_output->logical_geometry.y;
 
 	wl_surface_set_buffer_scale(seat->cursor_surface, output->scale);
 	wl_surface_attach(seat->cursor_surface,
@@ -52,16 +58,30 @@ static void pointer_handle_leave(void *data, struct wl_pointer *wl_pointer,
 	seat->current_output = NULL;
 }
 
+static void seat_set_outputs_dirty(struct slurp_seat *seat) {
+	struct slurp_box box;
+	seat_get_box(seat, &box);
+	struct slurp_output *output;
+	wl_list_for_each(output, &seat->state->outputs, link) {
+		if (box_intersect(&output->logical_geometry, &box)) {
+			set_output_dirty(output);
+		}
+	}
+}
+
 static void pointer_handle_motion(void *data, struct wl_pointer *wl_pointer,
 		uint32_t time, wl_fixed_t surface_x, wl_fixed_t surface_y) {
 	struct slurp_seat *seat = data;
+	// the places the cursor moved away from are also dirty
+	if (seat->button_state == WL_POINTER_BUTTON_STATE_PRESSED) {
+		seat_set_outputs_dirty(seat);
+	}
 
-	seat->x = wl_fixed_to_int(surface_x);
-	seat->y = wl_fixed_to_int(surface_y);
+	seat->x = wl_fixed_to_int(surface_x) + seat->current_output->logical_geometry.x;
+	seat->y = wl_fixed_to_int(surface_y) + seat->current_output->logical_geometry.y;
 
-	if (seat->button_state == WL_POINTER_BUTTON_STATE_PRESSED &&
-			seat->current_output != NULL) {
-		set_output_dirty(seat->current_output);
+	if (seat->button_state == WL_POINTER_BUTTON_STATE_PRESSED) {
+		seat_set_outputs_dirty(seat);
 	}
 }
 
@@ -80,10 +100,6 @@ static void pointer_handle_button(void *data, struct wl_pointer *wl_pointer,
 		break;
 	case WL_POINTER_BUTTON_STATE_RELEASED:
 		seat_get_box(seat, &state->result);
-		if (seat->current_output != NULL) {
-			state->result.x += seat->current_output->geometry.x;
-			state->result.y += seat->current_output->geometry.y;
-		}
 		state->running = false;
 		break;
 	}
@@ -181,6 +197,16 @@ static void output_handle_geometry(void *data, struct wl_output *wl_output,
 	output->geometry.y = y;
 }
 
+static void output_handle_mode(void *data, struct wl_output *wl_output,
+		uint32_t flags, int32_t width, int32_t height, int32_t refresh) {
+	struct slurp_output *output = data;
+	if ((flags & WL_OUTPUT_MODE_CURRENT) == 0) {
+		return;
+	}
+	output->geometry.width = width;
+	output->geometry.height = height;
+}
+
 static void output_handle_scale(void *data, struct wl_output *wl_output,
 		int32_t scale) {
 	struct slurp_output *output = data;
@@ -190,9 +216,30 @@ static void output_handle_scale(void *data, struct wl_output *wl_output,
 
 static const struct wl_output_listener output_listener = {
 	.geometry = output_handle_geometry,
-	.mode = noop,
+	.mode = output_handle_mode,
 	.done = noop,
 	.scale = output_handle_scale,
+};
+
+static void xdg_output_handle_logical_position(void *data,
+		struct zxdg_output_v1 *xdg_output, int32_t x, int32_t y) {
+	struct slurp_output *output = data;
+	output->logical_geometry.x = x;
+	output->logical_geometry.y = y;
+}
+static void xdg_output_handle_logical_size(void *data,
+		struct zxdg_output_v1 *xdg_output, int32_t width, int32_t height) {
+	struct slurp_output *output = data;
+	output->logical_geometry.width = width;
+	output->logical_geometry.height = height;
+}
+
+static const struct zxdg_output_v1_listener xdg_output_listener = {
+	.logical_position = xdg_output_handle_logical_position,
+	.logical_size = xdg_output_handle_logical_size,
+	.done = noop,
+	.name = noop,
+	.description = noop,
 };
 
 static void create_output(struct slurp_state *state,
@@ -219,6 +266,9 @@ static void destroy_output(struct slurp_output *output) {
 	finish_buffer(&output->buffers[1]);
 	wl_cursor_theme_destroy(output->cursor_theme);
 	zwlr_layer_surface_v1_destroy(output->layer_surface);
+	if (output->xdg_output) {
+		zxdg_output_v1_destroy(output->xdg_output);
+	}
 	wl_surface_destroy(output->surface);
 	if (output->frame_callback) {
 		wl_callback_destroy(output->frame_callback);
@@ -343,6 +393,8 @@ static void handle_global(void *data, struct wl_registry *registry,
 		struct wl_output *wl_output =
 			wl_registry_bind(registry, name, &wl_output_interface, 3);
 		create_output(state, wl_output);
+	} else if (strcmp(interface, zxdg_output_manager_v1_interface.name) == 0) {
+		state->xdg_output_manager = wl_registry_bind(registry, name, &zxdg_output_manager_v1_interface, 1);
 	}
 }
 
@@ -450,6 +502,9 @@ int main(int argc, char *argv[]) {
 		fprintf(stderr, "compositor doesn't support zwlr_layer_shell_v1\n");
 		return EXIT_FAILURE;
 	}
+	if (state.xdg_output_manager == NULL) {
+		fprintf(stderr, "compositor doesn't support xdg-output. Guessing geometry from physical output size.\n");
+	}
 	if (wl_list_empty(&state.outputs)) {
 		fprintf(stderr, "no wl_output\n");
 		return EXIT_FAILURE;
@@ -464,7 +519,18 @@ int main(int argc, char *argv[]) {
 			state.layer_shell, output->surface, output->wl_output,
 			ZWLR_LAYER_SHELL_V1_LAYER_OVERLAY, "selection");
 		zwlr_layer_surface_v1_add_listener(output->layer_surface,
-			&layer_surface_listener, output);
+		  &layer_surface_listener, output);
+
+		if (state.xdg_output_manager) {
+			output->xdg_output = zxdg_output_manager_v1_get_xdg_output(
+				state.xdg_output_manager, output->wl_output);
+			zxdg_output_v1_add_listener(output->xdg_output, &xdg_output_listener, output);
+		} else {
+			// guess
+			output->logical_geometry = output->geometry;
+			output->logical_geometry.width /= output->scale;
+			output->logical_geometry.height /= output->scale;
+		}
 
 		zwlr_layer_surface_v1_set_anchor(output->layer_surface,
 			ZWLR_LAYER_SURFACE_V1_ANCHOR_TOP |
@@ -494,6 +560,8 @@ int main(int argc, char *argv[]) {
 		}
 		output->cursor_image = cursor->images[0];
 	}
+	// second roundtrip for xdg-output
+	wl_display_roundtrip(state.display);
 
 	struct slurp_seat *seat;
 	wl_list_for_each(seat, &state.seats, link) {
