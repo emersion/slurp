@@ -354,12 +354,12 @@ static const struct wl_registry_listener registry_listener = {
 static const char usage[] =
 	"Usage: slurp [options...]\n"
 	"\n"
-	"  -h         Show help message and quit.\n"
-	"  -d         Display dimensions of selection.\n"
-	"  -b #rrggbb Set background color.\n"
-	"  -c #rrggbb Set border color.\n"
-	"  -s #rrggbb Set selection color.\n"
-	"  -w n       Set border weight.\n";
+	"  -h           Show help message and quit.\n"
+	"  -d           Display dimensions of selection.\n"
+	"  -b #rrggbbaa Set background color.\n"
+	"  -c #rrggbbaa Set border color.\n"
+	"  -s #rrggbbaa Set selection color.\n"
+	"  -w n         Set border weight.\n";
 
 uint32_t parse_color(const char *color) {
 	if (color[0] == '#') {
