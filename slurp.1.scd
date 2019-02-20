@@ -34,9 +34,24 @@ select, or click to cancel the selection.
 *-w* _weight_
 	Set border weight.
 
+*-f* _format_
+	Set format. See *FORMAT* for more detail.
+
 # COLORS
 
 Colors may be specified in #RRGGBB or #RRGGBBAA format. The # is optional.
+
+# FORMAT
+
+Interpreted sequences are:
+
+%x	The x-coordinate of the selection
+
+%y	The y-coordinate of the selection
+
+%w	The width of the selection
+
+%h	The height of the selection
 
 # AUTHORS
 

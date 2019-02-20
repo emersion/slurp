@@ -411,7 +411,10 @@ static const char usage[] =
 	"  -b #rrggbbaa Set background color.\n"
 	"  -c #rrggbbaa Set border color.\n"
 	"  -s #rrggbbaa Set selection color.\n"
-	"  -w n         Set border weight.\n";
+	"  -w n         Set border weight.\n"
+	"  -f s         Set output format.\n";
+
+static char format[128] = "%x,%y %wx%h";
 
 uint32_t parse_color(const char *color) {
 	if (color[0] == '#') {
@@ -431,6 +434,43 @@ uint32_t parse_color(const char *color) {
 	return res;
 }
 
+static void format_result(const char *format, char *buffer, const int buflen, struct slurp_box result) {
+	int bufferPos = 0;
+	for (int i = 0; format[i] != 0; i++) {
+		char c = format[i];
+		if (c == '%') {
+			char next = format[i + 1];
+			
+			char replacement[128] = {0};
+			switch (next) {
+				case 'x':
+					sprintf(replacement, "%u", result.x);
+					break;
+				case 'y':
+					sprintf(replacement, "%u", result.y);
+					break;
+				case 'w':
+					sprintf(replacement, "%u", result.width);
+					break;
+				case 'h':
+					sprintf(replacement, "%u", result.height);
+					break;
+			}
+
+			if (replacement != NULL) {
+				strncpy(buffer + bufferPos, replacement, buflen - bufferPos - 1);
+				bufferPos = bufferPos + strlen(replacement);
+				i++;
+				continue;
+			}
+		}
+
+		buffer[bufferPos] = c;
+		bufferPos++;
+	}
+	buffer[buflen - 1] = '\0';
+}
+
 int main(int argc, char *argv[]) {
 	struct slurp_state state = {
 		.colors = {
@@ -443,7 +483,7 @@ int main(int argc, char *argv[]) {
 	};
 
 	int opt;
-	while ((opt = getopt(argc, argv, "hdb:c:s:w:")) != -1) {
+	while ((opt = getopt(argc, argv, "hdb:c:s:w:f:")) != -1) {
 		switch (opt) {
 		case 'h':
 			printf("%s", usage);
@@ -459,6 +499,9 @@ int main(int argc, char *argv[]) {
 			break;
 		case 's':
 			state.colors.selection = parse_color(optarg);
+			break;
+		case 'f':
+			strncpy(format, optarg, 128);
 			break;
 		case 'w': {
 			errno = 0;
@@ -597,7 +640,8 @@ int main(int argc, char *argv[]) {
 		return EXIT_FAILURE;
 	}
 
-	printf("%d,%d %dx%d\n", state.result.x, state.result.y,
-		state.result.width, state.result.height);
+	char output_result[256] = {0};
+	format_result(format, output_result, 256, state.result);
+	printf("%s\n", output_result);
 	return EXIT_SUCCESS;
 }
