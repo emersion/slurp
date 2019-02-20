@@ -41,7 +41,6 @@ static void pointer_handle_enter(void *data, struct wl_pointer *wl_pointer,
 	seat->x = wl_fixed_to_int(surface_x) + seat->current_output->logical_geometry.x;
 	seat->y = wl_fixed_to_int(surface_y) + seat->current_output->logical_geometry.y;
 
-
 	wl_surface_set_buffer_scale(seat->cursor_surface, output->scale);
 	wl_surface_attach(seat->cursor_surface,
 			wl_cursor_image_get_buffer(output->cursor_image), 0, 0);
@@ -60,9 +59,6 @@ static void pointer_handle_leave(void *data, struct wl_pointer *wl_pointer,
 }
 
 static void seat_set_outputs_dirty(struct slurp_seat *seat) {
-	if (seat->button_state != WL_POINTER_BUTTON_STATE_PRESSED) {
-		return;
-	}
 	struct slurp_box box;
 	seat_get_box(seat, &box);
 	struct slurp_output *output;
@@ -77,13 +73,16 @@ static void pointer_handle_motion(void *data, struct wl_pointer *wl_pointer,
 		uint32_t time, wl_fixed_t surface_x, wl_fixed_t surface_y) {
 	struct slurp_seat *seat = data;
 	// the places the cursor moved away from are also dirty
-	seat_set_outputs_dirty(seat);
+	if (seat->button_state == WL_POINTER_BUTTON_STATE_PRESSED) {
+		seat_set_outputs_dirty(seat);
+	}
 
 	seat->x = wl_fixed_to_int(surface_x) + seat->current_output->logical_geometry.x;
 	seat->y = wl_fixed_to_int(surface_y) + seat->current_output->logical_geometry.y;
 
-	seat_set_outputs_dirty(seat);
-
+	if (seat->button_state == WL_POINTER_BUTTON_STATE_PRESSED) {
+		seat_set_outputs_dirty(seat);
+	}
 }
 
 static void pointer_handle_button(void *data, struct wl_pointer *wl_pointer,
@@ -194,8 +193,8 @@ static void output_handle_geometry(void *data, struct wl_output *wl_output,
 		int32_t transform) {
 	struct slurp_output *output = data;
 
-	output->raw_geometry.x = x;
-	output->raw_geometry.y = y;
+	output->geometry.x = x;
+	output->geometry.y = y;
 }
 
 static void output_handle_mode(void *data, struct wl_output *wl_output,
@@ -204,8 +203,8 @@ static void output_handle_mode(void *data, struct wl_output *wl_output,
 	if ((flags & WL_OUTPUT_MODE_CURRENT) == 0) {
 		return;
 	}
-	output->raw_geometry.width = width;
-	output->raw_geometry.height = height;
+	output->geometry.width = width;
+	output->geometry.height = height;
 }
 
 static void output_handle_scale(void *data, struct wl_output *wl_output,
@@ -214,17 +213,11 @@ static void output_handle_scale(void *data, struct wl_output *wl_output,
 
 	output->scale = scale;
 }
-static void output_handle_done(void *data, struct wl_output *wl_output) {
-	struct slurp_output *output = data;
-	output->geometry = output->raw_geometry;
-	output->geometry.width /= output->scale;
-	output->geometry.height /= output->scale;
-}
 
 static const struct wl_output_listener output_listener = {
 	.geometry = output_handle_geometry,
 	.mode = output_handle_mode,
-	.done = output_handle_done,
+	.done = noop,
 	.scale = output_handle_scale,
 };
 
@@ -535,6 +528,8 @@ int main(int argc, char *argv[]) {
 		} else {
 			// guess
 			output->logical_geometry = output->geometry;
+			output->logical_geometry.width /= output->scale;
+			output->logical_geometry.height /= output->scale;
 		}
 
 		zwlr_layer_surface_v1_set_anchor(output->layer_surface,

@@ -36,7 +36,7 @@ void render(struct slurp_output *output) {
 		seat_get_box(seat, &b);
 		if (!box_intersect(&output->logical_geometry, &b)) {
 			continue;
-    }
+		}
 		b.x -= output->logical_geometry.x;
 		b.y -= output->logical_geometry.y;
 
