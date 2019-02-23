@@ -434,27 +434,27 @@ uint32_t parse_color(const char *color) {
 	return res;
 }
 
-static void format_result(const char *format, char *buffer, const int buflen, struct slurp_box result) {
+static void format_result(const struct slurp_box result, const char *format, char *buffer, const int buflen) {
 	int buffer_pos = 0;
-	for (int i = 0; format[i] != 0; i++) {
+	for (size_t i = 0; format[i] != 0; i++) {
 		char c = format[i];
 		if (c == '%') {
 			char next = format[i + 1];
 			
 			char replacement[128] = {0};
 			switch (next) {
-				case 'x':
-					sprintf(replacement, "%u", result.x);
-					break;
-				case 'y':
-					sprintf(replacement, "%u", result.y);
-					break;
-				case 'w':
-					sprintf(replacement, "%u", result.width);
-					break;
-				case 'h':
-					sprintf(replacement, "%u", result.height);
-					break;
+			case 'x':
+				sprintf(replacement, "%u", result.x);
+				break;
+			case 'y':
+				sprintf(replacement, "%u", result.y);
+				break;
+			case 'w':
+				sprintf(replacement, "%u", result.width);
+				break;
+			case 'h':
+				sprintf(replacement, "%u", result.height);
+				break;
 			}
 
 			if (replacement != NULL) {
@@ -641,7 +641,7 @@ int main(int argc, char *argv[]) {
 	}
 
 	char output_result[256] = {0};
-	format_result(format, output_result, 256, state.result);
+	format_result(state.result, format, output_result, 256);
 	printf("%s\n", output_result);
 	return EXIT_SUCCESS;
 }
