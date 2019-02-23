@@ -414,8 +414,6 @@ static const char usage[] =
 	"  -w n         Set border weight.\n"
 	"  -f s         Set output format.\n";
 
-static char format[128] = "%x,%y %wx%h";
-
 uint32_t parse_color(const char *color) {
 	if (color[0] == '#') {
 		++color;
@@ -472,6 +470,7 @@ static void format_result(const struct slurp_box result, const char *format, cha
 }
 
 int main(int argc, char *argv[]) {
+	static char *format_default = "%x,%y %wx%h";
 	struct slurp_state state = {
 		.colors = {
 			.background = 0xFFFFFF40,
@@ -483,6 +482,7 @@ int main(int argc, char *argv[]) {
 	};
 
 	int opt;
+	char *format = NULL;
 	while ((opt = getopt(argc, argv, "hdb:c:s:w:f:")) != -1) {
 		switch (opt) {
 		case 'h':
@@ -501,7 +501,7 @@ int main(int argc, char *argv[]) {
 			state.colors.selection = parse_color(optarg);
 			break;
 		case 'f':
-			strncpy(format, optarg, 128);
+			format = optarg;
 			break;
 		case 'w': {
 			errno = 0;
@@ -517,6 +517,10 @@ int main(int argc, char *argv[]) {
 			printf("%s", usage);
 			return EXIT_FAILURE;
 		}
+	}
+
+	if (format == NULL) {
+		format = format_default;
 	}
 
 	wl_list_init(&state.outputs);
