@@ -411,7 +411,8 @@ static const char usage[] =
 	"  -b #rrggbbaa Set background color.\n"
 	"  -c #rrggbbaa Set border color.\n"
 	"  -s #rrggbbaa Set selection color.\n"
-	"  -w n         Set border weight.\n";
+	"  -w n         Set border weight.\n"
+	"  -f s         Set output format.\n";
 
 uint32_t parse_color(const char *color) {
 	if (color[0] == '#') {
@@ -431,6 +432,34 @@ uint32_t parse_color(const char *color) {
 	return res;
 }
 
+static void print_formatted_result(const struct slurp_box *result, const char *format) {
+	for (size_t i = 0; format[i] != 0; i++) {
+		char c = format[i];
+		if (c == '%') {
+			char next = format[i + 1];
+			
+			i++; // Skip the next character (x, y, w or h)
+			switch (next) {
+			case 'x':
+				printf("%u", result->x);
+				continue;
+			case 'y':
+				printf("%u", result->y);
+				continue;
+			case 'w':
+				printf("%u", result->width);
+				continue;
+			case 'h':
+				printf("%u", result->height);
+				continue;
+			}
+			i--; // If no case was executed, revert i back - we don't need to skip the next character.
+		}
+		printf("%c", c);
+	}
+	printf("\n");
+}
+
 int main(int argc, char *argv[]) {
 	struct slurp_state state = {
 		.colors = {
@@ -443,7 +472,8 @@ int main(int argc, char *argv[]) {
 	};
 
 	int opt;
-	while ((opt = getopt(argc, argv, "hdb:c:s:w:")) != -1) {
+	char *format = "%x,%y %wx%h";
+	while ((opt = getopt(argc, argv, "hdb:c:s:w:f:")) != -1) {
 		switch (opt) {
 		case 'h':
 			printf("%s", usage);
@@ -459,6 +489,9 @@ int main(int argc, char *argv[]) {
 			break;
 		case 's':
 			state.colors.selection = parse_color(optarg);
+			break;
+		case 'f':
+			format = optarg;
 			break;
 		case 'w': {
 			errno = 0;
@@ -597,7 +630,6 @@ int main(int argc, char *argv[]) {
 		return EXIT_FAILURE;
 	}
 
-	printf("%d,%d %dx%d\n", state.result.x, state.result.y,
-		state.result.width, state.result.height);
+	print_formatted_result(&state.result, format);
 	return EXIT_SUCCESS;
 }
