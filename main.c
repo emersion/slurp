@@ -432,7 +432,7 @@ uint32_t parse_color(const char *color) {
 	return res;
 }
 
-static void print_formatted_result(const struct slurp_box result, const char *format) {
+static void print_formatted_result(const struct slurp_box *result, const char *format) {
 	for (size_t i = 0; format[i] != 0; i++) {
 		char c = format[i];
 		if (c == '%') {
@@ -441,16 +441,16 @@ static void print_formatted_result(const struct slurp_box result, const char *fo
 			i++; // Skip the next character (x, y, w or h)
 			switch (next) {
 			case 'x':
-				printf("%u", result.x);
+				printf("%u", result->x);
 				continue;
 			case 'y':
-				printf("%u", result.y);
+				printf("%u", result->y);
 				continue;
 			case 'w':
-				printf("%u", result.width);
+				printf("%u", result->width);
 				continue;
 			case 'h':
-				printf("%u", result.height);
+				printf("%u", result->height);
 				continue;
 			}
 			i--; // If no case was executed, revert i back - we don't need to skip the next character.
@@ -472,7 +472,7 @@ int main(int argc, char *argv[]) {
 	};
 
 	int opt;
-	char *format = NULL;
+	char *format = "%x,%y %wx%h";
 	while ((opt = getopt(argc, argv, "hdb:c:s:w:f:")) != -1) {
 		switch (opt) {
 		case 'h':
@@ -507,10 +507,6 @@ int main(int argc, char *argv[]) {
 			printf("%s", usage);
 			return EXIT_FAILURE;
 		}
-	}
-
-	if (format == NULL) {
-		format = "%x,%y %wx%h";
 	}
 
 	wl_list_init(&state.outputs);
@@ -634,6 +630,6 @@ int main(int argc, char *argv[]) {
 		return EXIT_FAILURE;
 	}
 
-	print_formatted_result(state.result, format);
+	print_formatted_result(&state.result, format);
 	return EXIT_SUCCESS;
 }
