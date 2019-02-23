@@ -432,45 +432,35 @@ uint32_t parse_color(const char *color) {
 	return res;
 }
 
-static void format_result(const struct slurp_box result, const char *format, char *buffer, const int buflen) {
-	int buffer_pos = 0;
+static void print_formatted_result(const struct slurp_box result, const char *format) {
 	for (size_t i = 0; format[i] != 0; i++) {
 		char c = format[i];
 		if (c == '%') {
 			char next = format[i + 1];
 			
-			char replacement[128] = {0};
+			i++; // Skip the next character (x, y, w or h)
 			switch (next) {
 			case 'x':
-				sprintf(replacement, "%u", result.x);
-				break;
+				printf("%u", result.x);
+				continue;
 			case 'y':
-				sprintf(replacement, "%u", result.y);
-				break;
+				printf("%u", result.y);
+				continue;
 			case 'w':
-				sprintf(replacement, "%u", result.width);
-				break;
+				printf("%u", result.width);
+				continue;
 			case 'h':
-				sprintf(replacement, "%u", result.height);
-				break;
-			}
-
-			if (replacement != NULL) {
-				strncpy(buffer + buffer_pos, replacement, buflen - buffer_pos - 1);
-				buffer_pos = buffer_pos + strlen(replacement);
-				i++;
+				printf("%u", result.height);
 				continue;
 			}
+			i--; // If no case was executed, revert i back - we don't need to skip the next character.
 		}
-
-		buffer[buffer_pos] = c;
-		buffer_pos++;
+		printf("%c", c);
 	}
-	buffer[buflen - 1] = '\0';
+	printf("\n");
 }
 
 int main(int argc, char *argv[]) {
-	static char *format_default = "%x,%y %wx%h";
 	struct slurp_state state = {
 		.colors = {
 			.background = 0xFFFFFF40,
@@ -520,7 +510,7 @@ int main(int argc, char *argv[]) {
 	}
 
 	if (format == NULL) {
-		format = format_default;
+		format = "%x,%y %wx%h";
 	}
 
 	wl_list_init(&state.outputs);
@@ -644,8 +634,6 @@ int main(int argc, char *argv[]) {
 		return EXIT_FAILURE;
 	}
 
-	char output_result[256] = {0};
-	format_result(state.result, format, output_result, 256);
-	printf("%s\n", output_result);
+	print_formatted_result(state.result, format);
 	return EXIT_SUCCESS;
 }
