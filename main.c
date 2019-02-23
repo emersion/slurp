@@ -435,7 +435,7 @@ uint32_t parse_color(const char *color) {
 }
 
 static void format_result(const char *format, char *buffer, const int buflen, struct slurp_box result) {
-	int bufferPos = 0;
+	int buffer_pos = 0;
 	for (int i = 0; format[i] != 0; i++) {
 		char c = format[i];
 		if (c == '%') {
@@ -458,15 +458,15 @@ static void format_result(const char *format, char *buffer, const int buflen, st
 			}
 
 			if (replacement != NULL) {
-				strncpy(buffer + bufferPos, replacement, buflen - bufferPos - 1);
-				bufferPos = bufferPos + strlen(replacement);
+				strncpy(buffer + buffer_pos, replacement, buflen - buffer_pos - 1);
+				buffer_pos = buffer_pos + strlen(replacement);
 				i++;
 				continue;
 			}
 		}
 
-		buffer[bufferPos] = c;
-		bufferPos++;
+		buffer[buffer_pos] = c;
+		buffer_pos++;
 	}
 	buffer[buflen - 1] = '\0';
 }
