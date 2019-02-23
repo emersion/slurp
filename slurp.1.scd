@@ -53,6 +53,8 @@ Interpreted sequences are:
 
 %h	The height of the selection
 
+The default format is "%x,%y %wx%h".
+
 # AUTHORS
 
 Maintained by Simon Ser <contact@emersion.fr>, who is assisted by other
