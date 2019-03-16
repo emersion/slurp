@@ -437,7 +437,7 @@ static void print_formatted_result(const struct slurp_box *result, const char *f
 		char c = format[i];
 		if (c == '%') {
 			char next = format[i + 1];
-			
+
 			i++; // Skip the next character (x, y, w or h)
 			switch (next) {
 			case 'x':
@@ -620,6 +620,9 @@ int main(int argc, char *argv[]) {
 	wl_display_roundtrip(state.display);
 
 	zwlr_layer_shell_v1_destroy(state.layer_shell);
+	if (state.xdg_output_manager != NULL) {
+		zxdg_output_manager_v1_destroy(state.xdg_output_manager);
+	}
 	wl_compositor_destroy(state.compositor);
 	wl_shm_destroy(state.shm);
 	wl_registry_destroy(state.registry);
