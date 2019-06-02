@@ -34,6 +34,7 @@ struct slurp_state {
 
 	uint32_t border_weight;
 	bool display_dimensions;
+	bool single_point;
 
 	struct slurp_box result;
 };

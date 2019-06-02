@@ -95,12 +95,21 @@ static void pointer_handle_button(void *data, struct wl_pointer *wl_pointer,
 
 	switch (button_state) {
 	case WL_POINTER_BUTTON_STATE_PRESSED:
-		seat->pressed_x = seat->x;
-		seat->pressed_y = seat->y;
+		if (state->single_point) {
+			state->result.x = seat->x;
+			state->result.y = seat->y;
+			state->result.width = state->result.height = 1;
+			state->running = false;
+		} else {
+			seat->pressed_x = seat->x;
+			seat->pressed_y = seat->y;
+		}
 		break;
 	case WL_POINTER_BUTTON_STATE_RELEASED:
-		seat_get_box(seat, &state->result);
-		state->running = false;
+		if (!state->single_point) {
+			seat_get_box(seat, &state->result);
+			state->running = false;
+		}
 		break;
 	}
 }
@@ -415,7 +424,8 @@ static const char usage[] =
 	"  -c #rrggbbaa Set border color.\n"
 	"  -s #rrggbbaa Set selection color.\n"
 	"  -w n         Set border weight.\n"
-	"  -f s         Set output format.\n";
+	"  -f s         Set output format.\n"
+	"  -p           Select a single point.\n";
 
 uint32_t parse_color(const char *color) {
 	if (color[0] == '#') {
@@ -480,7 +490,7 @@ int main(int argc, char *argv[]) {
 
 	int opt;
 	char *format = "%x,%y %wx%h";
-	while ((opt = getopt(argc, argv, "hdb:c:s:w:f:")) != -1) {
+	while ((opt = getopt(argc, argv, "hdb:c:s:w:pf:")) != -1) {
 		switch (opt) {
 		case 'h':
 			printf("%s", usage);
@@ -508,6 +518,9 @@ int main(int argc, char *argv[]) {
 				fprintf(stderr, "Error: expected numeric argument for -w\n");
 				exit(EXIT_FAILURE);
 			}
+			break;
+		case 'p':
+			state.single_point = true;
 			break;
 		}
 		default:

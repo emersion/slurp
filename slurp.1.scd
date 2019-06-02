@@ -37,6 +37,9 @@ select, or click to cancel the selection.
 *-f* _format_
 	Set format. See *FORMAT* for more detail.
 
+*-p*
+	Select a single pixel instead of a rectangle.
+
 # COLORS
 
 Colors may be specified in #RRGGBB or #RRGGBBAA format. The # is optional.
