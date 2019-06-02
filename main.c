@@ -18,10 +18,10 @@ static void noop() {
 static void set_output_dirty(struct slurp_output *output);
 
 bool box_intersect(const struct slurp_box *a, const struct slurp_box *b) {
-	return (a->x < b->x + b->width &&
-	        a->x + a->width > b->x &&
-	        a->y < b->y + b->height &&
-	        a->height + a->y > b->y);
+	return a->x < b->x + b->width &&
+		a->x + a->width > b->x &&
+		a->y < b->y + b->height &&
+		a->height + a->y > b->y;
 }
 
 static struct slurp_output *output_from_surface(struct slurp_state *state,
@@ -299,7 +299,8 @@ static void send_frame(struct slurp_output *output) {
 
 	// Schedule a frame in case the output becomes dirty again
 	output->frame_callback = wl_surface_frame(output->surface);
-	wl_callback_add_listener(output->frame_callback, &output_frame_listener, output);
+	wl_callback_add_listener(output->frame_callback,
+		&output_frame_listener, output);
 
 	wl_surface_attach(output->surface, output->current_buffer->buffer, 0, 0);
 	wl_surface_damage(output->surface, 0, 0, output->width, output->height);
@@ -331,7 +332,8 @@ static void set_output_dirty(struct slurp_output *output) {
 	}
 
 	output->frame_callback = wl_surface_frame(output->surface);
-	wl_callback_add_listener(output->frame_callback, &output_frame_listener, output);
+	wl_callback_add_listener(output->frame_callback,
+		&output_frame_listener, output);
 	wl_surface_commit(output->surface);
 }
 
@@ -394,7 +396,8 @@ static void handle_global(void *data, struct wl_registry *registry,
 			wl_registry_bind(registry, name, &wl_output_interface, 3);
 		create_output(state, wl_output);
 	} else if (strcmp(interface, zxdg_output_manager_v1_interface.name) == 0) {
-		state->xdg_output_manager = wl_registry_bind(registry, name, &zxdg_output_manager_v1_interface, 1);
+		state->xdg_output_manager = wl_registry_bind(registry, name,
+			&zxdg_output_manager_v1_interface, 1);
 	}
 }
 
@@ -432,8 +435,9 @@ uint32_t parse_color(const char *color) {
 	return res;
 }
 
-static void print_formatted_result(const struct slurp_box *result, const char *format) {
-	for (size_t i = 0; format[i] != 0; i++) {
+static void print_formatted_result(const struct slurp_box *result,
+		const char *format) {
+	for (size_t i = 0; format[i] != '\0'; i++) {
 		char c = format[i];
 		if (c == '%') {
 			char next = format[i + 1];
@@ -452,8 +456,11 @@ static void print_formatted_result(const struct slurp_box *result, const char *f
 			case 'h':
 				printf("%u", result->height);
 				continue;
+			default:
+				// If no case was executed, revert i back - we don't need to
+				// skip the next character.
+				i--;
 			}
-			i--; // If no case was executed, revert i back - we don't need to skip the next character.
 		}
 		printf("%c", c);
 	}
@@ -535,7 +542,8 @@ int main(int argc, char *argv[]) {
 		return EXIT_FAILURE;
 	}
 	if (state.xdg_output_manager == NULL) {
-		fprintf(stderr, "compositor doesn't support xdg-output. Guessing geometry from physical output size.\n");
+		fprintf(stderr, "compositor doesn't support xdg-output. "
+			"Guessing geometry from physical output size.\n");
 	}
 	if (wl_list_empty(&state.outputs)) {
 		fprintf(stderr, "no wl_output\n");
@@ -556,7 +564,8 @@ int main(int argc, char *argv[]) {
 		if (state.xdg_output_manager) {
 			output->xdg_output = zxdg_output_manager_v1_get_xdg_output(
 				state.xdg_output_manager, output->wl_output);
-			zxdg_output_v1_add_listener(output->xdg_output, &xdg_output_listener, output);
+			zxdg_output_v1_add_listener(output->xdg_output,
+				&xdg_output_listener, output);
 		} else {
 			// guess
 			output->logical_geometry = output->geometry;
