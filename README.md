@@ -21,6 +21,32 @@ ninja -C build
 build/slurp
 ```
 
+## Example usage
+
+Select a region and print it to stdout:
+
+```sh
+slurp
+```
+
+Select a single point instead of a region:
+
+```sh
+slurp -p
+```
+
+Select an output under Sway, using `swaymsg` and `jq`:
+
+```sh
+swaymsg -t get_outputs | jq -r '.[] | select(.active) | .rect | "\(.x),\(.y) \(.width)x\(.height)"' | slurp
+```
+
+Select a window under Sway, using `swaymsg` and `jq`:
+
+```sh
+swaymsg -t get_tree | jq -r '.. | (.nodes? // empty)[] | select(.pid and .visible) | .rect | "\(.x),\(.y) \(.width)x\(.height)"' | slurp
+```
+
 ## Contributing
 
 Either [send GitHub pull requests][1] or [send patches on the mailing list][2].
