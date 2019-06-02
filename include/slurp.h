@@ -12,11 +12,7 @@
 struct slurp_box {
 	int32_t x, y;
 	int32_t width, height;
-};
-
-struct slurp_box_ll {
-	struct slurp_box b;
-	struct slurp_box_ll *next;
+	struct wl_list link;
 };
 
 struct slurp_state {
@@ -40,7 +36,7 @@ struct slurp_state {
 	uint32_t border_weight;
 	bool display_dimensions;
 	bool single_point;
-	struct slurp_box_ll *boxes;
+	struct wl_list boxes; // slurp_box::link
 
 	struct slurp_box result;
 };
