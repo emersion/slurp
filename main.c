@@ -68,19 +68,20 @@ static void seat_set_outputs_dirty(struct slurp_seat *seat) {
 }
 
 static bool in_box(const struct slurp_box *box, int32_t x, int32_t y) {
-	return (box->x <= x
-					&& box->x + box->width >= x
-					&& box->y <= y
-					&& box->y + box->height >= y);
+	return box->x <= x
+		&& box->x + box->width >= x
+		&& box->y <= y
+		&& box->y + box->height >= y;
 }
+
 static int32_t box_size(const struct slurp_box *box) {
 	return box->width * box->height;
 }
 
-
 static int min(int a, int b) {
 	return (a < b) ? a : b;
 }
+
 static void pointer_handle_motion(void *data, struct wl_pointer *wl_pointer,
 		uint32_t time, wl_fixed_t surface_x, wl_fixed_t surface_y) {
 	struct slurp_seat *seat = data;
@@ -91,28 +92,31 @@ static void pointer_handle_motion(void *data, struct wl_pointer *wl_pointer,
 
 	seat->x = wl_fixed_to_int(surface_x) + seat->current_output->logical_geometry.x;
 	seat->y = wl_fixed_to_int(surface_y) + seat->current_output->logical_geometry.y;
-	if (seat->button_state == WL_POINTER_BUTTON_STATE_RELEASED) {
-		// find smallest box intersecting the cursor
+
+	switch (seat->button_state) {
+	case WL_POINTER_BUTTON_STATE_RELEASED:
 		seat->has_selection = false;
-		struct slurp_box_ll *ptr = seat->state->boxes;
-		while(ptr != NULL) {
-			if (in_box(&ptr->b, seat->x, seat->y)) {
-				if (seat->has_selection && box_size(&seat->selection) < box_size(&ptr->b)) {
-					goto next;
+
+		// find smallest box intersecting the cursor
+		struct slurp_box *box;
+		wl_list_for_each(box, &seat->state->boxes, link) {
+			if (in_box(box, seat->x, seat->y)) {
+				if (seat->has_selection &&
+						box_size(&seat->selection) < box_size(box)) {
+					continue;
 				}
-				seat->selection = ptr->b;
+				seat->selection = *box;
 				seat->has_selection = true;
 			}
-		next:
-			ptr = ptr->next;
 		}
-	}
-	if (seat->button_state == WL_POINTER_BUTTON_STATE_PRESSED) {
+		break;
+	case WL_POINTER_BUTTON_STATE_PRESSED:
 		seat->has_selection = true;
 		seat->selection.x = min(seat->pressed_x, seat->x);
 		seat->selection.y = min(seat->pressed_y, seat->y);
 		seat->selection.width = abs(seat->x - seat->pressed_x);
 		seat->selection.height = abs(seat->y - seat->pressed_y);
+		break;
 	}
 
 	if (seat->has_selection) {
@@ -505,15 +509,15 @@ static void print_formatted_result(const struct slurp_box *result,
 	printf("\n");
 }
 
-void add_choice_box(struct slurp_state *state, const struct slurp_box *box) {
-	struct slurp_box_ll *b = calloc(1, sizeof(struct slurp_box_ll));
+static void add_choice_box(struct slurp_state *state,
+		const struct slurp_box *box) {
+	struct slurp_box *b = calloc(1, sizeof(struct slurp_box));
 	if (b == NULL) {
 		fprintf(stderr, "allocation failed\n");
 		return;
 	}
-	b->b = *box;
-	b->next = state->boxes;
-	state->boxes = b;
+	*b = *box;
+	wl_list_insert(state->boxes.prev, &b->link);
 }
 
 int main(int argc, char *argv[]) {
@@ -568,9 +572,11 @@ int main(int argc, char *argv[]) {
 		}
 	}
 
-	if (!isatty(fileno(stdin))) {
-		struct slurp_box in_box;
-		while(fscanf(stdin, "%d,%d %dx%d\n", &in_box.x, &in_box.y, &in_box.width, &in_box.height) == 4) {
+	wl_list_init(&state.boxes);
+	if (!isatty(STDIN_FILENO) && !state.single_point) {
+		struct slurp_box in_box = {0};
+		while (fscanf(stdin, "%d,%d %dx%d\n", &in_box.x, &in_box.y,
+				&in_box.width, &in_box.height) == 4) {
 			add_choice_box(&state, &in_box);
 		}
 	}
@@ -706,11 +712,11 @@ int main(int argc, char *argv[]) {
 	wl_shm_destroy(state.shm);
 	wl_registry_destroy(state.registry);
 	wl_display_disconnect(state.display);
-	struct slurp_box_ll *box_tmp;
-	while(state.boxes) {
-		box_tmp = state.boxes->next;
-		free(state.boxes);
-		state.boxes = box_tmp;
+
+	struct slurp_box *box, *box_tmp;
+	wl_list_for_each_safe(box, box_tmp, &state.boxes, link) {
+		wl_list_remove(&box->link);
+		free(box);
 	}
 
 	if (state.result.width == 0 && state.result.height == 0) {
