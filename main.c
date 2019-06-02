@@ -563,6 +563,19 @@ int main(int argc, char *argv[]) {
 		return EXIT_FAILURE;
 	}
 
+	const char *cursor_theme = getenv("XCURSOR_THEME");
+	const char *cursor_size_str = getenv("XCURSOR_SIZE");
+	int cursor_size = 24;
+	if (cursor_size_str != NULL) {
+		char *end;
+		errno = 0;
+		cursor_size = strtol(cursor_size_str, &end, 10);
+		if (errno != 0 || cursor_size_str[0] == '\0' || end[0] != '\0') {
+			fprintf(stderr, "invalid XCURSOR_SIZE value\n");
+			return EXIT_FAILURE;
+		}
+	}
+
 	struct slurp_output *output;
 	wl_list_for_each(output, &state.outputs, link) {
 		output->surface = wl_compositor_create_surface(state.compositor);
@@ -595,8 +608,8 @@ int main(int argc, char *argv[]) {
 		zwlr_layer_surface_v1_set_exclusive_zone(output->layer_surface, -1);
 		wl_surface_commit(output->surface);
 
-		output->cursor_theme =
-			wl_cursor_theme_load(NULL, 24 * output->scale, state.shm);
+		output->cursor_theme = wl_cursor_theme_load(cursor_theme,
+			cursor_size * output->scale, state.shm);
 		if (output->cursor_theme == NULL) {
 			fprintf(stderr, "failed to load cursor theme\n");
 			return EXIT_FAILURE;
