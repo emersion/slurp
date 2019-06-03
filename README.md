@@ -5,6 +5,8 @@ Works well with [grim](https://github.com/emersion/grim).
 
 It currently works on Sway 1.0.
 
+Join the IRC channel: ##emersion on Freenode.
+
 ## Building
 
 Install dependencies:
