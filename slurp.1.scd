@@ -18,6 +18,9 @@ If the standard input is not a TTY, slurp will read a list of predefined
 rectangles for quick selection. Each line must be in the form
 "<x>,<y> <width>x<height>".
 
+If the _Esc_ key is pressed, selection is cancelled. If the _Space_ key is
+held, the selection is moved instead of being resized.
+
 # OPTIONS
 
 *-h*
