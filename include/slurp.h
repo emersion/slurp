@@ -17,6 +17,7 @@ struct slurp_box {
 
 struct slurp_state {
 	bool running;
+	bool edit_anchor;
 
 	struct wl_display *display;
 	struct wl_registry *registry;
@@ -80,7 +81,7 @@ struct slurp_seat {
 	enum wl_pointer_button_state button_state;
 	struct slurp_output *current_output;
 	int32_t x, y;
-	int32_t pressed_x, pressed_y;
+	int32_t anchor_x, anchor_y;
 	struct slurp_box selection;
 	bool has_selection;
 };

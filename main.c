@@ -14,7 +14,6 @@ static void noop() {
 	// This space intentionally left blank
 }
 
-
 static void set_output_dirty(struct slurp_output *output);
 
 bool box_intersect(const struct slurp_box *a, const struct slurp_box *b) {
@@ -27,6 +26,20 @@ bool box_intersect(const struct slurp_box *a, const struct slurp_box *b) {
 static struct slurp_output *output_from_surface(struct slurp_state *state,
 	struct wl_surface *surface);
 
+static void move_pointer(struct slurp_seat *seat, wl_fixed_t surface_x,
+		wl_fixed_t surface_y) {
+	int x = wl_fixed_to_int(surface_x) + seat->current_output->logical_geometry.x;
+	int y = wl_fixed_to_int(surface_y) + seat->current_output->logical_geometry.y;
+
+	if (seat->state->edit_anchor) {
+		seat->anchor_x += x - seat->x;
+		seat->anchor_y += y - seat->y;
+	}
+
+	seat->x = x;
+	seat->y = y;
+}
+
 static void pointer_handle_enter(void *data, struct wl_pointer *wl_pointer,
 		uint32_t serial, struct wl_surface *surface,
 		wl_fixed_t surface_x, wl_fixed_t surface_y) {
@@ -38,8 +51,7 @@ static void pointer_handle_enter(void *data, struct wl_pointer *wl_pointer,
 	// TODO: handle multiple overlapping outputs
 	seat->current_output = output;
 
-	seat->x = wl_fixed_to_int(surface_x) + seat->current_output->logical_geometry.x;
-	seat->y = wl_fixed_to_int(surface_y) + seat->current_output->logical_geometry.y;
+	move_pointer(seat, surface_x, surface_y);
 
 	wl_surface_set_buffer_scale(seat->cursor_surface, output->scale);
 	wl_surface_attach(seat->cursor_surface,
@@ -82,6 +94,10 @@ static int min(int a, int b) {
 	return (a < b) ? a : b;
 }
 
+static int max(int a, int b) {
+	return (a > b) ? a : b;
+}
+
 static void pointer_handle_motion(void *data, struct wl_pointer *wl_pointer,
 		uint32_t time, wl_fixed_t surface_x, wl_fixed_t surface_y) {
 	struct slurp_seat *seat = data;
@@ -90,8 +106,7 @@ static void pointer_handle_motion(void *data, struct wl_pointer *wl_pointer,
 		seat_set_outputs_dirty(seat);
 	}
 
-	seat->x = wl_fixed_to_int(surface_x) + seat->current_output->logical_geometry.x;
-	seat->y = wl_fixed_to_int(surface_y) + seat->current_output->logical_geometry.y;
+	move_pointer(seat, surface_x, surface_y);
 
 	switch (seat->button_state) {
 	case WL_POINTER_BUTTON_STATE_RELEASED:
@@ -110,12 +125,14 @@ static void pointer_handle_motion(void *data, struct wl_pointer *wl_pointer,
 			}
 		}
 		break;
-	case WL_POINTER_BUTTON_STATE_PRESSED:
+	case WL_POINTER_BUTTON_STATE_PRESSED:;
+		int32_t anchor_x = max(0, seat->anchor_x);
+		int32_t anchor_y = max(0, seat->anchor_y);
 		seat->has_selection = true;
-		seat->selection.x = min(seat->pressed_x, seat->x);
-		seat->selection.y = min(seat->pressed_y, seat->y);
-		seat->selection.width = abs(seat->x - seat->pressed_x);
-		seat->selection.height = abs(seat->y - seat->pressed_y);
+		seat->selection.x = min(anchor_x, seat->x);
+		seat->selection.y = min(anchor_y, seat->y);
+		seat->selection.width = abs(seat->x - anchor_x);
+		seat->selection.height = abs(seat->y - anchor_y);
 		break;
 	}
 
@@ -140,8 +157,8 @@ static void pointer_handle_button(void *data, struct wl_pointer *wl_pointer,
 			state->result.width = state->result.height = 1;
 			state->running = false;
 		} else {
-			seat->pressed_x = seat->x;
-			seat->pressed_y = seat->y;
+			seat->anchor_x = seat->x;
+			seat->anchor_y = seat->y;
 		}
 		break;
 	case WL_POINTER_BUTTON_STATE_RELEASED:
@@ -169,9 +186,25 @@ static void keyboard_handle_key(void *data, struct wl_keyboard *wl_keyboard,
 	struct slurp_seat *seat = data;
 	struct slurp_state *state = seat->state;
 	if (key_state == WL_KEYBOARD_KEY_STATE_PRESSED) {
-		if (key == KEY_ESC) {
+		switch (key) {
+		case KEY_ESC:
 			seat->has_selection = false;
+			state->edit_anchor = false;
 			state->running = false;
+			break;
+
+		case KEY_SPACE:
+			if (!seat->has_selection) {
+				break;
+			}
+			state->edit_anchor = true;
+			break;
+		}
+	}
+
+	if (key_state == WL_KEYBOARD_KEY_STATE_RELEASED) {
+		if (key == KEY_SPACE) {
+			state->edit_anchor = false;
 		}
 	}
 }
