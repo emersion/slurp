@@ -131,8 +131,9 @@ static void pointer_handle_motion(void *data, struct wl_pointer *wl_pointer,
 		seat->has_selection = true;
 		seat->selection.x = min(anchor_x, seat->x);
 		seat->selection.y = min(anchor_y, seat->y);
-		seat->selection.width = abs(seat->x - anchor_x);
-		seat->selection.height = abs(seat->y - anchor_y);
+		// selection includes the seat and anchor positions
+		seat->selection.width = abs(seat->x - anchor_x) + 1;
+		seat->selection.height = abs(seat->y - anchor_y) + 1;
 		break;
 	}
 
