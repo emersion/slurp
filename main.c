@@ -596,10 +596,10 @@ int main(int argc, char *argv[]) {
 				exit(EXIT_FAILURE);
 			}
 			break;
+		}
 		case 'p':
 			state.single_point = true;
 			break;
-		}
 		default:
 			printf("%s", usage);
 			return EXIT_FAILURE;
