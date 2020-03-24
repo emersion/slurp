@@ -17,7 +17,7 @@ Install dependencies:
 
 Then run:
 
-```shell
+```sh
 meson build
 ninja -C build
 build/slurp
