@@ -1,10 +1,13 @@
 #define _POSIX_C_SOURCE 2
+
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/mman.h>
 #include <unistd.h>
 #include <wayland-cursor.h>
+#include <xkbcommon/xkbcommon.h>
 #include <linux/input-event-codes.h>
 
 #include "slurp.h"
@@ -182,40 +185,80 @@ static const struct wl_pointer_listener pointer_listener = {
 	.axis = noop,
 };
 
+static void keyboard_handle_keymap(void *data, struct wl_keyboard *wl_keyboard,
+		const uint32_t format, const int32_t fd, const uint32_t size) {
+	struct slurp_seat *seat = data;
+	switch (format) {
+	case WL_KEYBOARD_KEYMAP_FORMAT_NO_KEYMAP:
+		seat->xkb_keymap = xkb_keymap_new_from_names(seat->state->xkb_context, NULL, XKB_KEYMAP_COMPILE_NO_FLAGS);
+		break;
+	case WL_KEYBOARD_KEYMAP_FORMAT_XKB_V1:;
+		void *buffer;
+		if ((buffer = mmap(NULL, size - 1, PROT_READ, MAP_PRIVATE, fd, 0)) == MAP_FAILED) {
+			fprintf(stderr, "mmap failed\n");
+			exit(EXIT_FAILURE);
+		}
+		seat->xkb_keymap =
+			xkb_keymap_new_from_buffer(seat->state->xkb_context,
+					buffer, size - 1,
+					XKB_KEYMAP_FORMAT_TEXT_V1,
+					XKB_KEYMAP_COMPILE_NO_FLAGS);
+		munmap(buffer, size - 1);
+		close(fd);
+		break;
+	}
+	seat->xkb_state = xkb_state_new(seat->xkb_keymap);
+}
+
 static void keyboard_handle_key(void *data, struct wl_keyboard *wl_keyboard,
-		uint32_t serial, uint32_t time, uint32_t key, uint32_t key_state) {
+		const uint32_t serial, const uint32_t time, const uint32_t key,
+		const uint32_t key_state) {
 	struct slurp_seat *seat = data;
 	struct slurp_state *state = seat->state;
-	if (key_state == WL_KEYBOARD_KEY_STATE_PRESSED) {
-		switch (key) {
-		case KEY_ESC:
+	const xkb_keysym_t keysym = xkb_state_key_get_one_sym(seat->xkb_state, key + 8);
+
+	switch (key_state) {
+	case WL_KEYBOARD_KEY_STATE_PRESSED:
+		switch (keysym) {
+		case XKB_KEY_Escape:
 			seat->has_selection = false;
 			state->edit_anchor = false;
 			state->running = false;
 			break;
 
-		case KEY_SPACE:
+		case XKB_KEY_space:
 			if (!seat->has_selection) {
 				break;
 			}
 			state->edit_anchor = true;
 			break;
 		}
-	}
+		break;
 
-	if (key_state == WL_KEYBOARD_KEY_STATE_RELEASED) {
-		if (key == KEY_SPACE) {
+	case WL_KEYBOARD_KEY_STATE_RELEASED:
+		if (keysym == XKB_KEY_space) {
 			state->edit_anchor = false;
 		}
+		break;
 	}
+
+}
+
+static void keyboard_handle_modifiers(void *data, struct wl_keyboard *wl_keyboard,
+		const uint32_t serial, const uint32_t mods_depressed,
+		const uint32_t mods_latched, const uint32_t mods_locked,
+		const uint32_t group) {
+	struct slurp_seat *seat = data;
+	xkb_state_update_mask(seat->xkb_state, mods_depressed, mods_latched,
+			mods_locked, 0, 0, group);
 }
 
 static const struct wl_keyboard_listener keyboard_listener = {
-	.keymap = noop,
+	.keymap = keyboard_handle_keymap,
 	.enter = noop,
 	.leave = noop,
 	.key = keyboard_handle_key,
-	.modifiers = noop,
+	.modifiers = keyboard_handle_modifiers,
 };
 
 
@@ -258,6 +301,8 @@ static void destroy_seat(struct slurp_seat *seat) {
 	if (seat->wl_keyboard) {
 		wl_keyboard_destroy(seat->wl_keyboard);
 	}
+	xkb_state_unref(seat->xkb_state);
+	xkb_keymap_unref(seat->xkb_keymap);
 	wl_seat_destroy(seat->wl_seat);
 	free(seat);
 }
@@ -623,6 +668,11 @@ int main(int argc, char *argv[]) {
 		return EXIT_FAILURE;
 	}
 
+	if ((state.xkb_context = xkb_context_new(XKB_CONTEXT_NO_FLAGS)) == NULL) {
+		fprintf(stderr, "xkb_context_new failed\n");
+		return EXIT_FAILURE;
+	}
+
 	state.registry = wl_display_get_registry(state.display);
 	wl_registry_add_listener(state.registry, &registry_listener, &state);
 	wl_display_roundtrip(state.display);
@@ -745,6 +795,7 @@ int main(int argc, char *argv[]) {
 	wl_compositor_destroy(state.compositor);
 	wl_shm_destroy(state.shm);
 	wl_registry_destroy(state.registry);
+	xkb_context_unref(state.xkb_context);
 	wl_display_disconnect(state.display);
 
 	struct slurp_box *box, *box_tmp;
