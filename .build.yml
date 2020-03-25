@@ -4,6 +4,7 @@ packages:
   - wayland
   - wayland-protocols
   - cairo
+  - libxkbcommon
 sources:
   - https://github.com/emerison/slurp
 tasks:

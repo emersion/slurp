@@ -22,6 +22,7 @@ realtime = cc.find_library('rt')
 wayland_client = dependency('wayland-client')
 wayland_cursor = dependency('wayland-cursor')
 wayland_protos = dependency('wayland-protocols', version: '>=1.14')
+xkbcommon = dependency('xkbcommon')
 
 subdir('protocol')
 
@@ -38,6 +39,7 @@ executable(
 		realtime,
 		wayland_client,
 		wayland_cursor,
+		xkbcommon,
 	],
 	include_directories: [slurp_inc],
 	install: true,

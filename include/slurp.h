@@ -28,6 +28,8 @@ struct slurp_state {
 	struct wl_list outputs; // slurp_output::link
 	struct wl_list seats; // slurp_seat::link
 
+	struct xkb_context *xkb_context;
+
 	struct {
 		uint32_t background;
 		uint32_t border;
@@ -84,6 +86,10 @@ struct slurp_seat {
 	int32_t anchor_x, anchor_y;
 	struct slurp_box selection;
 	bool has_selection;
+
+	// keymap:
+	struct xkb_keymap *xkb_keymap;
+	struct xkb_state *xkb_state;
 };
 
 bool box_intersect(const struct slurp_box *a, const struct slurp_box *b);
