@@ -13,6 +13,7 @@ Install dependencies:
 * meson
 * wayland
 * cairo
+* libxkbcommon
 * scdoc (optional: man pages)
 
 Then run:
