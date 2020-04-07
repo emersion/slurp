@@ -9,6 +9,8 @@
 #include "wlr-layer-shell-unstable-v1-client-protocol.h"
 #include "xdg-output-unstable-v1-client-protocol.h"
 
+#define TOUCH_ID_EMPTY -1
+
 struct slurp_box {
 	int32_t x, y;
 	int32_t width, height;
@@ -78,18 +80,24 @@ struct slurp_seat {
 	// keyboard:
 	struct wl_keyboard *wl_keyboard;
 
-	// pointer:
-	struct wl_pointer *wl_pointer;
-	enum wl_pointer_button_state button_state;
+	//selection (pointer/touch):
 	struct slurp_output *current_output;
 	int32_t x, y;
 	int32_t anchor_x, anchor_y;
 	struct slurp_box selection;
 	bool has_selection;
 
+	// pointer:
+	struct wl_pointer *wl_pointer;
+	enum wl_pointer_button_state button_state;
+
 	// keymap:
 	struct xkb_keymap *xkb_keymap;
 	struct xkb_state *xkb_state;
+	
+	// touch:
+	struct wl_touch *wl_touch;
+  	int32_t touch_id;
 };
 
 bool box_intersect(const struct slurp_box *a, const struct slurp_box *b);
