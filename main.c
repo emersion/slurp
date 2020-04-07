@@ -29,7 +29,7 @@ bool box_intersect(const struct slurp_box *a, const struct slurp_box *b) {
 static struct slurp_output *output_from_surface(struct slurp_state *state,
 	struct wl_surface *surface);
 
-static void move_pointer(struct slurp_seat *seat, wl_fixed_t surface_x,
+static void move_seat(struct slurp_seat *seat, wl_fixed_t surface_x,
 		wl_fixed_t surface_y) {
 	int x = wl_fixed_to_int(surface_x) + seat->current_output->logical_geometry.x;
 	int y = wl_fixed_to_int(surface_y) + seat->current_output->logical_geometry.y;
@@ -54,7 +54,7 @@ static void pointer_handle_enter(void *data, struct wl_pointer *wl_pointer,
 	// TODO: handle multiple overlapping outputs
 	seat->current_output = output;
 
-	move_pointer(seat, surface_x, surface_y);
+	move_seat(seat, surface_x, surface_y);
 
 	wl_surface_set_buffer_scale(seat->cursor_surface, output->scale);
 	wl_surface_attach(seat->cursor_surface,
@@ -101,6 +101,17 @@ static int max(int a, int b) {
 	return (a > b) ? a : b;
 }
 
+static void handle_active_selection_motion(struct slurp_seat *seat) {
+	int32_t anchor_x = max(0, seat->anchor_x);
+	int32_t anchor_y = max(0, seat->anchor_y);
+	seat->has_selection = true;
+	seat->selection.x = min(anchor_x, seat->x);
+	seat->selection.y = min(anchor_y, seat->y);
+	// selection includes the seat and anchor positions
+	seat->selection.width = abs(seat->x - anchor_x) + 1;
+	seat->selection.height = abs(seat->y - anchor_y) + 1;
+}
+
 static void pointer_handle_motion(void *data, struct wl_pointer *wl_pointer,
 		uint32_t time, wl_fixed_t surface_x, wl_fixed_t surface_y) {
 	struct slurp_seat *seat = data;
@@ -109,7 +120,7 @@ static void pointer_handle_motion(void *data, struct wl_pointer *wl_pointer,
 		seat_set_outputs_dirty(seat);
 	}
 
-	move_pointer(seat, surface_x, surface_y);
+	move_seat(seat, surface_x, surface_y);
 
 	switch (seat->button_state) {
 	case WL_POINTER_BUTTON_STATE_RELEASED:
@@ -129,14 +140,7 @@ static void pointer_handle_motion(void *data, struct wl_pointer *wl_pointer,
 		}
 		break;
 	case WL_POINTER_BUTTON_STATE_PRESSED:;
-		int32_t anchor_x = max(0, seat->anchor_x);
-		int32_t anchor_y = max(0, seat->anchor_y);
-		seat->has_selection = true;
-		seat->selection.x = min(anchor_x, seat->x);
-		seat->selection.y = min(anchor_y, seat->y);
-		// selection includes the seat and anchor positions
-		seat->selection.width = abs(seat->x - anchor_x) + 1;
-		seat->selection.height = abs(seat->y - anchor_y) + 1;
+		handle_active_selection_motion(seat);
 		break;
 	}
 
@@ -145,34 +149,43 @@ static void pointer_handle_motion(void *data, struct wl_pointer *wl_pointer,
 	}
 }
 
+static void handle_selection_start(struct slurp_seat *seat) {
+	struct slurp_state *state = seat->state;
+	if (state->single_point) {
+		state->result.x = seat->x;
+		state->result.y = seat->y;
+		state->result.width = state->result.height = 1;
+		state->running = false;
+	} else {
+		seat->anchor_x = seat->x;
+		seat->anchor_y = seat->y;
+	}
+}
+
+static void handle_selection_end(struct slurp_seat *seat) {
+	struct slurp_state *state = seat->state;
+	if (state->single_point) {
+		return;
+	}
+	if (seat->has_selection) {
+		state->result = seat->selection;
+	}
+	state->running = false;
+}
+
 static void pointer_handle_button(void *data, struct wl_pointer *wl_pointer,
 		uint32_t serial, uint32_t time, uint32_t button,
 		uint32_t button_state) {
 	struct slurp_seat *seat = data;
-	struct slurp_state *state = seat->state;
 
 	seat->button_state = button_state;
 
 	switch (button_state) {
 	case WL_POINTER_BUTTON_STATE_PRESSED:
-		if (state->single_point) {
-			state->result.x = seat->x;
-			state->result.y = seat->y;
-			state->result.width = state->result.height = 1;
-			state->running = false;
-		} else {
-			seat->anchor_x = seat->x;
-			seat->anchor_y = seat->y;
-		}
+		handle_selection_start(seat);
 		break;
 	case WL_POINTER_BUTTON_STATE_RELEASED:
-		if (state->single_point) {
-			break;
-		}
-		if (seat->has_selection) {
-			state->result = seat->selection;
-		}
-		state->running = false;
+		handle_selection_end(seat);
 		break;
 	}
 }
@@ -261,6 +274,57 @@ static const struct wl_keyboard_listener keyboard_listener = {
 	.modifiers = keyboard_handle_modifiers,
 };
 
+static void touch_handle_down(void *data, struct wl_touch *touch,
+		uint32_t serial, uint32_t time,
+		struct wl_surface *surface, int32_t id,
+		wl_fixed_t x, wl_fixed_t y) {
+	struct slurp_seat *seat = data;
+	if (seat->touch_id == TOUCH_ID_EMPTY) {
+		seat->touch_id = id;
+		seat->current_output =
+			output_from_surface(seat->state, surface);
+		move_seat(seat, x, y);
+		handle_selection_start(seat);
+	}
+}
+
+static void touch_clear_state(struct slurp_seat *seat) {
+	seat->touch_id = TOUCH_ID_EMPTY;
+	seat->current_output = NULL;
+}
+
+static void touch_handle_up(void *data, struct wl_touch *touch, uint32_t serial,
+		uint32_t time, int32_t id) {
+	struct slurp_seat *seat = data;
+	handle_selection_end(seat);
+	touch_clear_state(seat);
+}
+
+static void touch_handle_motion(void *data, struct wl_touch *touch,
+		uint32_t time, int32_t id, wl_fixed_t x,
+		wl_fixed_t y) {
+	struct slurp_seat *seat = data;
+	if (seat->touch_id == id) {
+		move_seat(seat, x, y);
+		handle_active_selection_motion(seat);
+		seat_set_outputs_dirty(seat);
+	}
+}
+
+static void touch_handle_cancel(void *data, struct wl_touch *touch) {
+	struct slurp_seat *seat = data;
+	touch_clear_state(seat);
+}
+
+static const struct wl_touch_listener touch_listener = {
+	.down = touch_handle_down,
+	.up = touch_handle_up,
+	.frame = noop,
+	.motion = touch_handle_motion,
+	.orientation = noop,
+	.shape = noop,
+	.cancel = touch_handle_cancel,
+};
 
 static void seat_handle_capabilities(void *data, struct wl_seat *wl_seat,
 		uint32_t capabilities) {
@@ -273,6 +337,10 @@ static void seat_handle_capabilities(void *data, struct wl_seat *wl_seat,
 	if (capabilities & WL_SEAT_CAPABILITY_KEYBOARD) {
 		seat->wl_keyboard = wl_seat_get_keyboard(wl_seat);
 		wl_keyboard_add_listener(seat->wl_keyboard, &keyboard_listener, seat);
+	}
+	if (capabilities & WL_SEAT_CAPABILITY_TOUCH) {
+		seat->wl_touch = wl_seat_get_touch(wl_seat);
+		wl_touch_add_listener(seat->wl_touch, &touch_listener, seat);
 	}
 }
 
@@ -288,6 +356,7 @@ static void create_seat(struct slurp_state *state, struct wl_seat *wl_seat) {
 	}
 	seat->state = state;
 	seat->wl_seat = wl_seat;
+	seat->touch_id = TOUCH_ID_EMPTY;
 	wl_list_insert(&state->seats, &seat->link);
 	wl_seat_add_listener(wl_seat, &seat_listener, seat);
 }
