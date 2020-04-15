@@ -17,6 +17,14 @@ struct slurp_box {
 	struct wl_list link;
 };
 
+struct slurp_selection {
+	struct slurp_output *current_output;
+	int32_t x, y;
+	int32_t anchor_x, anchor_y;
+	struct slurp_box selection;
+	bool has_selection;
+};
+
 struct slurp_state {
 	bool running;
 	bool edit_anchor;
@@ -81,11 +89,9 @@ struct slurp_seat {
 	struct wl_keyboard *wl_keyboard;
 
 	//selection (pointer/touch):
-	struct slurp_output *current_output;
-	int32_t x, y;
-	int32_t anchor_x, anchor_y;
-	struct slurp_box selection;
-	bool has_selection;
+
+	struct slurp_selection pointer_selection;
+	struct slurp_selection touch_selection;
 
 	// pointer:
 	struct wl_pointer *wl_pointer;
