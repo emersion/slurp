@@ -49,6 +49,7 @@ struct slurp_state {
 	uint32_t border_weight;
 	bool display_dimensions;
 	bool single_point;
+	bool crosshairs;
 	struct wl_list boxes; // slurp_box::link
 
 	struct slurp_box result;
