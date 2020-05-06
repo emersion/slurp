@@ -92,12 +92,14 @@ static void seat_update_selection(struct slurp_seat *seat) {
 }
 
 static void seat_set_outputs_dirty(struct slurp_seat *seat) {
+	struct slurp_state *state = seat->state;
 	struct slurp_output *output;
 	wl_list_for_each(output, &seat->state->outputs, link) {
 		if (box_intersect(&output->logical_geometry,
 			&seat->pointer_selection.selection) ||
 				box_intersect(&output->logical_geometry,
-			&seat->touch_selection.selection)) {
+			&seat->touch_selection.selection) ||
+			state->crosshairs) {
 			set_output_dirty(output);
 		}
 	}
@@ -188,8 +190,10 @@ static void pointer_handle_leave(void *data, struct wl_pointer *wl_pointer,
 static void pointer_handle_motion(void *data, struct wl_pointer *wl_pointer,
 		uint32_t time, wl_fixed_t surface_x, wl_fixed_t surface_y) {
 	struct slurp_seat *seat = data;
+	struct slurp_state *state = seat->state;
+
 	// the places the cursor moved away from are also dirty
-	if (seat->pointer_selection.has_selection) {
+	if (seat->pointer_selection.has_selection || state->crosshairs) {
 		seat_set_outputs_dirty(seat);
 	}
 
@@ -204,7 +208,7 @@ static void pointer_handle_motion(void *data, struct wl_pointer *wl_pointer,
 		break;
 	}
 
-	if (seat->pointer_selection.has_selection) {
+	if (seat->pointer_selection.has_selection || state->crosshairs) {
 		seat_set_outputs_dirty(seat);
 	}
 }
@@ -902,7 +906,7 @@ int main(int argc, char *argv[]) {
 	char *format = "%x,%y %wx%h\n";
 	bool output_boxes = false;
 	int w, h;
-	while ((opt = getopt(argc, argv, "hdb:c:s:B:w:proa:f:F:")) != -1) {
+	while ((opt = getopt(argc, argv, "hdb:c:s:B:w:proa:f:F:x")) != -1) {
 		switch (opt) {
 		case 'h':
 			printf("%s", usage);
@@ -958,6 +962,9 @@ int main(int argc, char *argv[]) {
 			}
 			state.fixed_aspect_ratio = true;
 			state.aspect_ratio = (double) h / w;
+			break;
+		case 'x':
+			state.crosshairs = true;
 			break;
 		default:
 			printf("%s", usage);
