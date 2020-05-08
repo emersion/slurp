@@ -31,6 +31,22 @@ void render(struct slurp_output *output) {
 				&seat->touch_selection :
 				&seat->pointer_selection;
 
+		if (!current_selection->has_selection && state->crosshairs) {
+			if (output->logical_geometry.x <= current_selection->x &&
+					output->logical_geometry.x + output->logical_geometry.width >= current_selection->x &&
+					output->logical_geometry.y <= current_selection->y &&
+					output->logical_geometry.y + output->logical_geometry.height >= current_selection->y) {
+
+				set_source_u32(cairo, state->colors.selection);
+				cairo_rectangle(cairo, 0, current_selection->y * scale,
+						output->logical_geometry.width * scale, 1 * scale);
+				cairo_fill(cairo);
+				cairo_rectangle(cairo, (current_selection->x - output->logical_geometry.x) * scale,
+						output->logical_geometry.y * scale, 1 * scale, output->logical_geometry.height * scale);
+				cairo_fill(cairo);
+			}
+		}
+
 		if (!seat->wl_pointer) {
 			continue;
 		}
