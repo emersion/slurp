@@ -26,6 +26,25 @@ bool box_intersect(const struct slurp_box *a, const struct slurp_box *b) {
 		a->height + a->y > b->y;
 }
 
+static bool in_box(const struct slurp_box *box, int32_t x, int32_t y) {
+	return box->x <= x
+		&& box->x + box->width >= x
+		&& box->y <= y
+		&& box->y + box->height >= y;
+}
+
+static int32_t box_size(const struct slurp_box *box) {
+	return box->width * box->height;
+}
+
+static int min(int a, int b) {
+	return (a < b) ? a : b;
+}
+
+static int max(int a, int b) {
+	return (a > b) ? a : b;
+}
+
 static struct slurp_output *output_from_surface(struct slurp_state *state,
 	struct wl_surface *surface);
 
@@ -43,6 +62,18 @@ static void move_seat(struct slurp_seat *seat, wl_fixed_t surface_x,
 
 	current_selection->x = x;
 	current_selection->y = y;
+}
+
+static void seat_set_outputs_dirty(struct slurp_seat *seat) {
+	struct slurp_output *output;
+	wl_list_for_each(output, &seat->state->outputs, link) {
+		if (box_intersect(&output->logical_geometry,
+			&seat->pointer_selection.selection) ||
+		    box_intersect(&output->logical_geometry,
+			&seat->touch_selection.selection)) {
+			set_output_dirty(output);
+		}
+	}
 }
 
 static void pointer_handle_enter(void *data, struct wl_pointer *wl_pointer,
@@ -73,37 +104,6 @@ static void pointer_handle_leave(void *data, struct wl_pointer *wl_pointer,
 
 	// TODO: handle multiple overlapping outputs
 	seat->pointer_selection.current_output = NULL;
-}
-
-static void seat_set_outputs_dirty(struct slurp_seat *seat) {
-	struct slurp_output *output;
-	wl_list_for_each(output, &seat->state->outputs, link) {
-		if (box_intersect(&output->logical_geometry,
-			&seat->pointer_selection.selection) ||
-		    box_intersect(&output->logical_geometry,
-			&seat->touch_selection.selection)) {
-			set_output_dirty(output);
-		}
-	}
-}
-
-static bool in_box(const struct slurp_box *box, int32_t x, int32_t y) {
-	return box->x <= x
-		&& box->x + box->width >= x
-		&& box->y <= y
-		&& box->y + box->height >= y;
-}
-
-static int32_t box_size(const struct slurp_box *box) {
-	return box->width * box->height;
-}
-
-static int min(int a, int b) {
-	return (a < b) ? a : b;
-}
-
-static int max(int a, int b) {
-	return (a > b) ? a : b;
 }
 
 static void handle_active_selection_motion(struct slurp_seat *seat, struct slurp_selection *current_selection) {
