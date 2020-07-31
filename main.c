@@ -64,6 +64,26 @@ static void move_seat(struct slurp_seat *seat, wl_fixed_t surface_x,
 	current_selection->y = y;
 }
 
+static void seat_update_selection(struct slurp_seat *seat) {
+	seat->pointer_selection.has_selection = false;
+
+	// find smallest box intersecting the cursor
+	struct slurp_box *box;
+	wl_list_for_each(box, &seat->state->boxes, link) {
+		if (in_box(box, seat->pointer_selection.x,
+			   seat->pointer_selection.y)) {
+			if (seat->pointer_selection.has_selection &&
+				box_size(
+					&seat->pointer_selection.selection) <
+					box_size(box)) {
+				continue;
+			}
+			seat->pointer_selection.selection = *box;
+			seat->pointer_selection.has_selection = true;
+		}
+	}
+}
+
 static void seat_set_outputs_dirty(struct slurp_seat *seat) {
 	struct slurp_output *output;
 	wl_list_for_each(output, &seat->state->outputs, link) {
@@ -88,6 +108,8 @@ static void pointer_handle_enter(void *data, struct wl_pointer *wl_pointer,
 	seat->pointer_selection.current_output = output;
 
 	move_seat(seat, surface_x, surface_y, &seat->pointer_selection);
+	seat_update_selection(seat);
+	seat_set_outputs_dirty(seat);
 
 	wl_surface_set_buffer_scale(seat->cursor_surface, output->scale);
 	wl_surface_attach(seat->cursor_surface,
@@ -130,23 +152,7 @@ static void pointer_handle_motion(void *data, struct wl_pointer *wl_pointer,
 
 	switch (seat->button_state) {
 	case WL_POINTER_BUTTON_STATE_RELEASED:
-		seat->pointer_selection.has_selection = false;
-
-		// find smallest box intersecting the cursor
-		struct slurp_box *box;
-		wl_list_for_each(box, &seat->state->boxes, link) {
-			if (in_box(box, seat->pointer_selection.x,
-				   seat->pointer_selection.y)) {
-				if (seat->pointer_selection.has_selection &&
-				    box_size(
-					    &seat->pointer_selection.selection) <
-					    box_size(box)) {
-					continue;
-				}
-				seat->pointer_selection.selection = *box;
-				seat->pointer_selection.has_selection = true;
-			}
-		}
+		seat_update_selection(seat);
 		break;
 	case WL_POINTER_BUTTON_STATE_PRESSED:;
 		handle_active_selection_motion(seat, &seat->pointer_selection);
