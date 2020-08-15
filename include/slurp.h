@@ -49,15 +49,21 @@ struct slurp_state {
 	uint32_t border_weight;
 	bool display_dimensions;
 	bool single_point;
+	bool output_selection;
 	struct wl_list boxes; // slurp_box::link
-
-	struct slurp_box result;
+    
+	struct {
+		struct slurp_box selection;
+		struct slurp_output *output;
+	} result;
 };
 
 struct slurp_output {
 	struct wl_output *wl_output;
 	struct slurp_state *state;
 	struct wl_list link; // slurp_state::outputs
+
+	char* name;
 
 	struct slurp_box geometry;
 	struct slurp_box logical_geometry;

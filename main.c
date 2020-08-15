@@ -1,4 +1,4 @@
-#define _POSIX_C_SOURCE 2
+#define _POSIX_C_SOURCE 200809L
 
 #include <errno.h>
 #include <stdio.h>
@@ -169,12 +169,26 @@ static void handle_selection_start(struct slurp_seat *seat,
 	struct slurp_state *state = seat->state;
 	current_selection->has_selection = true;
 	
-	if (state->single_point) {
-		state->result.x = current_selection->x;
-		state->result.y = current_selection->y;
-		state->result.width = state->result.height = 1;
+	if (state->single_point || state->output_selection) {
+        
+        struct slurp_output *output;
+        wl_list_for_each(output, &state->outputs, link) {
+            if(in_box(&output->logical_geometry, current_selection->x, current_selection->y)) {
+                break;
+            }
+        }
+        state->result.output = output;
+        
+        if(state->output_selection) {
+            state->result.selection = output->logical_geometry;
+        } else {
+            state->result.selection.x = current_selection->x;
+            state->result.selection.y = current_selection->y;
+            state->result.selection.width = state->result.selection.height = 1;
+        }
+
 		state->running = false;
-	} else {
+    } else {
 		current_selection->anchor_x = current_selection->x;
 		current_selection->anchor_y = current_selection->y;
 	}
@@ -183,11 +197,11 @@ static void handle_selection_start(struct slurp_seat *seat,
 static void handle_selection_end(struct slurp_seat *seat,
 				 struct slurp_selection *current_selection) {
 	struct slurp_state *state = seat->state;
-	if (state->single_point) {
+	if (state->single_point || state->output_selection) {
 		return;
 	}
 	if (current_selection->has_selection) {
-		state->result = current_selection->selection;
+		state->result.selection = current_selection->selection;
 	}
 	state->running = false;
 }
@@ -450,11 +464,17 @@ static void xdg_output_handle_logical_size(void *data,
 	output->logical_geometry.height = height;
 }
 
+static void xdg_output_handle_name(void *data,
+		struct zxdg_output_v1 *xdg_output, const char *name) {
+	struct slurp_output *output = data;
+	output->name = strdup(name);
+}
+
 static const struct zxdg_output_v1_listener xdg_output_listener = {
 	.logical_position = xdg_output_handle_logical_position,
 	.logical_size = xdg_output_handle_logical_size,
 	.done = noop,
-	.name = noop,
+	.name = xdg_output_handle_name,
 	.description = noop,
 };
 
@@ -468,6 +488,8 @@ static void create_output(struct slurp_state *state,
 	output->wl_output = wl_output;
 	output->state = state;
 	output->scale = 1;
+	output->name = strdup("<unknown>"); // just to simplify the logic when destroying outputs
+	
 	wl_list_insert(&state->outputs, &output->link);
 
 	wl_output_add_listener(wl_output, &output_listener, output);
@@ -613,7 +635,7 @@ static void handle_global(void *data, struct wl_registry *registry,
 		create_output(state, wl_output);
 	} else if (strcmp(interface, zxdg_output_manager_v1_interface.name) == 0) {
 		state->xdg_output_manager = wl_registry_bind(registry, name,
-			&zxdg_output_manager_v1_interface, 1);
+			&zxdg_output_manager_v1_interface, 2);
 	}
 }
 
@@ -632,7 +654,8 @@ static const char usage[] =
 	"  -s #rrggbbaa Set selection color.\n"
 	"  -w n         Set border weight.\n"
 	"  -f s         Set output format.\n"
-	"  -p           Select a single point.\n";
+	"  -p           Select a single point.\n"
+	"  -o           Output selection.\n";
 
 uint32_t parse_color(const char *color) {
 	if (color[0] == '#') {
@@ -652,7 +675,7 @@ uint32_t parse_color(const char *color) {
 	return res;
 }
 
-static void print_formatted_result(const struct slurp_box *result,
+static void print_formatted_result(const struct slurp_state *state,
 		const char *format) {
 	for (size_t i = 0; format[i] != '\0'; i++) {
 		char c = format[i];
@@ -662,16 +685,23 @@ static void print_formatted_result(const struct slurp_box *result,
 			i++; // Skip the next character (x, y, w or h)
 			switch (next) {
 			case 'x':
-				printf("%u", result->x);
+				printf("%u", state->result.selection.x);
 				continue;
 			case 'y':
-				printf("%u", result->y);
+				printf("%u", state->result.selection.y);
 				continue;
 			case 'w':
-				printf("%u", result->width);
+				printf("%u", state->result.selection.width);
 				continue;
 			case 'h':
-				printf("%u", result->height);
+				printf("%u", state->result.selection.height);
+				continue;
+			case 'o':
+				if(state->result.output == NULL) {
+					printf("<unknown>");
+				} else {
+					printf("%s", state->result.output->name);
+				}
 				continue;
 			default:
 				// If no case was executed, revert i back - we don't need to
@@ -708,7 +738,7 @@ int main(int argc, char *argv[]) {
 
 	int opt;
 	char *format = "%x,%y %wx%h";
-	while ((opt = getopt(argc, argv, "hdb:c:s:w:pf:")) != -1) {
+	while ((opt = getopt(argc, argv, "hdob:c:s:w:pf:")) != -1) {
 		switch (opt) {
 		case 'h':
 			printf("%s", usage);
@@ -727,6 +757,9 @@ int main(int argc, char *argv[]) {
 			break;
 		case 'f':
 			format = optarg;
+			break;
+		case 'o':
+			state.output_selection = true;
 			break;
 		case 'w': {
 			errno = 0;
@@ -748,7 +781,7 @@ int main(int argc, char *argv[]) {
 	}
 
 	wl_list_init(&state.boxes);
-	if (!isatty(STDIN_FILENO) && !state.single_point) {
+	if (!isatty(STDIN_FILENO) && !(state.single_point || state.output_selection)) {
 		struct slurp_box in_box = {0};
 		while (fscanf(stdin, "%d,%d %dx%d\n", &in_box.x, &in_box.y,
 				&in_box.width, &in_box.height) == 4) {
@@ -861,6 +894,13 @@ int main(int argc, char *argv[]) {
 	// second roundtrip for xdg-output
 	wl_display_roundtrip(state.display);
 
+	if(state.output_selection) {
+		struct slurp_output *box_output;
+		wl_list_for_each(box_output, &state.outputs, link) {
+			add_choice_box(&state, &box_output->logical_geometry);
+		}
+	}
+
 	struct slurp_seat *seat;
 	wl_list_for_each(seat, &state.seats, link) {
 		seat->cursor_surface =
@@ -872,8 +912,11 @@ int main(int argc, char *argv[]) {
 		// This space intentionally left blank
 	}
 
+	print_formatted_result(&state, format);
+
 	struct slurp_output *output_tmp;
 	wl_list_for_each_safe(output, output_tmp, &state.outputs, link) {
+		free(output->name);
 		destroy_output(output);
 	}
 	struct slurp_seat *seat_tmp;
@@ -900,11 +943,11 @@ int main(int argc, char *argv[]) {
 		free(box);
 	}
 
-	if (state.result.width == 0 && state.result.height == 0) {
+	if (state.result.selection.width == 0 && state.result.selection.height == 0) {
 		fprintf(stderr, "selection cancelled\n");
 		return EXIT_FAILURE;
 	}
 
-	print_formatted_result(&state.result, format);
+
 	return EXIT_SUCCESS;
 }
