@@ -1,4 +1,4 @@
-#define _POSIX_C_SOURCE 2
+#define _POSIX_C_SOURCE 200809L
 
 #include <errno.h>
 #include <stdio.h>
@@ -168,7 +168,7 @@ static void handle_selection_start(struct slurp_seat *seat,
 				   struct slurp_selection *current_selection) {
 	struct slurp_state *state = seat->state;
 	current_selection->has_selection = true;
-	
+
 	if (state->single_point) {
 		state->result.x = current_selection->x;
 		state->result.y = current_selection->y;
@@ -749,11 +749,18 @@ int main(int argc, char *argv[]) {
 
 	wl_list_init(&state.boxes);
 	if (!isatty(STDIN_FILENO) && !state.single_point) {
-		struct slurp_box in_box = {0};
-		while (fscanf(stdin, "%d,%d %dx%d\n", &in_box.x, &in_box.y,
-				&in_box.width, &in_box.height) == 4) {
+		char *line = NULL;
+		size_t line_size = 0;
+		while (getline(&line, &line_size, stdin) >= 0) {
+			struct slurp_box in_box = {0};
+			if (sscanf(line, "%d,%d %dx%d", &in_box.x, &in_box.y,
+					&in_box.width, &in_box.height) != 4) {
+				fprintf(stderr, "invalid box format: %s\n", line);
+				return EXIT_FAILURE;
+			}
 			add_choice_box(&state, &in_box);
 		}
+		free(line);
 	}
 	wl_list_init(&state.outputs);
 	wl_list_init(&state.seats);
