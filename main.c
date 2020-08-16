@@ -662,16 +662,16 @@ static void print_formatted_result(const struct slurp_box *result,
 			i++; // Skip the next character (x, y, w or h)
 			switch (next) {
 			case 'x':
-				printf("%u", result->x);
+				printf("%d", result->x);
 				continue;
 			case 'y':
-				printf("%u", result->y);
+				printf("%d", result->y);
 				continue;
 			case 'w':
-				printf("%u", result->width);
+				printf("%d", result->width);
 				continue;
 			case 'h':
-				printf("%u", result->height);
+				printf("%d", result->height);
 				continue;
 			default:
 				// If no case was executed, revert i back - we don't need to
