@@ -15,6 +15,7 @@ struct slurp_box {
 	int32_t x, y;
 	int32_t width, height;
 	struct wl_list link;
+	char *label;
 };
 
 struct slurp_selection {
@@ -100,7 +101,7 @@ struct slurp_seat {
 	// keymap:
 	struct xkb_keymap *xkb_keymap;
 	struct xkb_state *xkb_state;
-	
+
 	// touch:
 	struct wl_touch *wl_touch;
   	int32_t touch_id;

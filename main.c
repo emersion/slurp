@@ -673,6 +673,11 @@ static void print_formatted_result(const struct slurp_box *result,
 			case 'h':
 				printf("%d", result->height);
 				continue;
+			case 'l':
+				if (result->label) {
+					printf("%s", result->label);
+				}
+				continue;
 			default:
 				// If no case was executed, revert i back - we don't need to
 				// skip the next character.
@@ -753,8 +758,8 @@ int main(int argc, char *argv[]) {
 		size_t line_size = 0;
 		while (getline(&line, &line_size, stdin) >= 0) {
 			struct slurp_box in_box = {0};
-			if (sscanf(line, "%d,%d %dx%d", &in_box.x, &in_box.y,
-					&in_box.width, &in_box.height) != 4) {
+			if (sscanf(line, "%d,%d %dx%d %m[^\n]", &in_box.x, &in_box.y,
+					&in_box.width, &in_box.height, &in_box.label) < 4) {
 				fprintf(stderr, "invalid box format: %s\n", line);
 				return EXIT_FAILURE;
 			}

@@ -16,7 +16,9 @@ select, or click to cancel the selection.
 
 If the standard input is not a TTY, slurp will read a list of predefined
 rectangles for quick selection. Each line must be in the form
-"<x>,<y> <width>x<height>".
+"<x>,<y> <width>x<height> [label]". The label is optional and can be any string
+that doesn't contain newlines. It can be accessed using the "%l" sequence in a
+format string.
 
 If the _Esc_ key is pressed, selection is cancelled. If the _Space_ key is
 held, the selection is moved instead of being resized.
@@ -63,6 +65,8 @@ Interpreted sequences are:
 %w	The width of the selection
 
 %h	The height of the selection
+
+%l	Label included with region from stdin
 
 The default format is "%x,%y %wx%h".
 
