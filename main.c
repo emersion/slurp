@@ -13,6 +13,10 @@
 #include "slurp.h"
 #include "render.h"
 
+#define BG_COLOR 0xFFFFFF40
+#define BORDER_COLOR 0x000000FF
+#define SELECTION_COLOR 0x00000000
+
 static void noop() {
 	// This space intentionally left blank
 }
@@ -637,6 +641,7 @@ static const char usage[] =
 	"  -b #rrggbbaa Set background color.\n"
 	"  -c #rrggbbaa Set border color.\n"
 	"  -s #rrggbbaa Set selection color.\n"
+	"  -B #rrggbbaa Set option box color.\n"
 	"  -w n         Set border weight.\n"
 	"  -f s         Set output format.\n"
 	"  -o           Select a display output.\n"
@@ -736,9 +741,10 @@ int main(int argc, char *argv[]) {
 
 	struct slurp_state state = {
 		.colors = {
-			.background = 0xFFFFFF40,
-			.border = 0x000000FF,
-			.selection = 0x00000000,
+			.background = BG_COLOR,
+			.border = BORDER_COLOR,
+			.selection = SELECTION_COLOR,
+			.choice = BG_COLOR,
 		},
 		.border_weight = 2,
 		.display_dimensions = false,
@@ -747,7 +753,7 @@ int main(int argc, char *argv[]) {
 	int opt;
 	char *format = "%x,%y %wx%h\n";
 	bool output_boxes = false;
-	while ((opt = getopt(argc, argv, "hdb:c:s:w:pof:")) != -1) {
+	while ((opt = getopt(argc, argv, "hdb:c:s:B:w:pof:")) != -1) {
 		switch (opt) {
 		case 'h':
 			printf("%s", usage);
@@ -763,6 +769,9 @@ int main(int argc, char *argv[]) {
 			break;
 		case 's':
 			state.colors.selection = parse_color(optarg);
+			break;
+		case 'B':
+			state.colors.choice = parse_color(optarg);
 			break;
 		case 'f':
 			format = optarg;
