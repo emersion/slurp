@@ -34,7 +34,11 @@ void render(struct slurp_output *output) {
 		if (!seat->wl_pointer) {
 			continue;
 		}
-		
+
+		if (!current_selection->has_selection) {
+			continue;
+		}
+
 		if (!box_intersect(&output->logical_geometry,
 			&current_selection->selection)) {
 			continue;
