@@ -40,6 +40,10 @@ held, the selection is moved instead of being resized.
 *-s* _color_
 	Set selection color. See *COLORS* for more detail.
 
+*-B* _color_
+	Set color for highlighting predefined rectangles from standard input when not
+	selected.
+
 *-w* _weight_
 	Set border weight.
 

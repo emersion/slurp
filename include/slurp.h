@@ -45,6 +45,7 @@ struct slurp_state {
 		uint32_t background;
 		uint32_t border;
 		uint32_t selection;
+		uint32_t choice;
 	} colors;
 
 	uint32_t border_weight;
