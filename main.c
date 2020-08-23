@@ -171,14 +171,19 @@ static void pointer_handle_motion(void *data, struct wl_pointer *wl_pointer,
 static void handle_selection_start(struct slurp_seat *seat,
 				   struct slurp_selection *current_selection) {
 	struct slurp_state *state = seat->state;
-	current_selection->has_selection = true;
 
 	if (state->single_point) {
 		state->result.x = current_selection->x;
 		state->result.y = current_selection->y;
 		state->result.width = state->result.height = 1;
 		state->running = false;
+	} else if (state->restrict_selection) {
+		if (current_selection->has_selection) {
+			state->result = current_selection->selection;
+			state->running = false;
+		}
 	} else {
+		current_selection->has_selection = true;
 		current_selection->anchor_x = current_selection->x;
 		current_selection->anchor_y = current_selection->y;
 	}
@@ -187,7 +192,7 @@ static void handle_selection_start(struct slurp_seat *seat,
 static void handle_selection_end(struct slurp_seat *seat,
 				 struct slurp_selection *current_selection) {
 	struct slurp_state *state = seat->state;
-	if (state->single_point) {
+	if (state->single_point || state->restrict_selection) {
 		return;
 	}
 	if (current_selection->has_selection) {
@@ -645,7 +650,8 @@ static const char usage[] =
 	"  -w n         Set border weight.\n"
 	"  -f s         Set output format.\n"
 	"  -o           Select a display output.\n"
-	"  -p           Select a single point.\n";
+	"  -p           Select a single point.\n"
+	"  -r           Restrict selection to predefined boxes.\n";
 
 uint32_t parse_color(const char *color) {
 	if (color[0] == '#') {
@@ -748,12 +754,13 @@ int main(int argc, char *argv[]) {
 		},
 		.border_weight = 2,
 		.display_dimensions = false,
+		.restrict_selection = false,
 	};
 
 	int opt;
 	char *format = "%x,%y %wx%h\n";
 	bool output_boxes = false;
-	while ((opt = getopt(argc, argv, "hdb:c:s:B:w:pof:")) != -1) {
+	while ((opt = getopt(argc, argv, "hdb:c:s:B:w:prof:")) != -1) {
 		switch (opt) {
 		case 'h':
 			printf("%s", usage);
@@ -792,10 +799,18 @@ int main(int argc, char *argv[]) {
 		case 'o':
 			output_boxes = true;
 			break;
+		case 'r':
+			state.restrict_selection = true;
+			break;
 		default:
 			printf("%s", usage);
 			return EXIT_FAILURE;
 		}
+	}
+
+	if (state.single_point && state.restrict_selection) {
+		fprintf(stderr, "-p and -r cannot be used together\n");
+		return EXIT_FAILURE;
 	}
 
 	wl_list_init(&state.boxes);
