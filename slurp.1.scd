@@ -14,8 +14,8 @@ slurp is a command-line utility to select a region from Wayland compositors
 which support the layer-shell protocol. It lets the user hold the pointer to
 select, or click to cancel the selection.
 
-If the standard input is not a TTY, slurp will read a list of predefined
-rectangles for quick selection. Each line must be in the form
+If the standard input is not a TTY or the -r option is used, slurp will read a
+list of predefined rectangles for quick selection. Each line must be in the form
 "<x>,<y> <width>x<height> [label]". The label is optional and can be any string
 that doesn't contain newlines. It can be accessed using the "%l" sequence in a
 format string.
@@ -57,6 +57,11 @@ held, the selection is moved instead of being resized.
 *-o*
 	Add predefined rectangles for all outputs, as if provided on standard input.
 	The label will be the name of the output.
+
+*-r*
+	Require the user to select one of the predefined rectangles. These can come
+	from standard input, if *-o* is used, the rectangles of all display outputs.
+	This option conflicts with *-p*.
 
 # COLORS
 

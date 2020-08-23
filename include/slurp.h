@@ -14,8 +14,8 @@
 struct slurp_box {
 	int32_t x, y;
 	int32_t width, height;
-	struct wl_list link;
 	char *label;
+	struct wl_list link;
 };
 
 struct slurp_selection {
@@ -51,6 +51,7 @@ struct slurp_state {
 	uint32_t border_weight;
 	bool display_dimensions;
 	bool single_point;
+	bool restrict_selection;
 	struct wl_list boxes; // slurp_box::link
 
 	struct slurp_box result;
