@@ -50,6 +50,10 @@ held, the selection is moved instead of being resized.
 	Select a single pixel instead of a rectangle. This mode ignores any
 	predefined rectangles read from the standard input.
 
+*-o*
+	Add predefined rectangles for all outputs, as if provided on standard input.
+	The label will be the name of the output.
+
 # COLORS
 
 Colors may be specified in #RRGGBB or #RRGGBBAA format. The # is optional.

@@ -639,6 +639,7 @@ static const char usage[] =
 	"  -s #rrggbbaa Set selection color.\n"
 	"  -w n         Set border weight.\n"
 	"  -f s         Set output format.\n"
+	"  -o           Select a display output.\n"
 	"  -p           Select a single point.\n";
 
 uint32_t parse_color(const char *color) {
@@ -723,6 +724,10 @@ static void add_choice_box(struct slurp_state *state,
 		return;
 	}
 	*b = *box;
+	// copy label, so that this has ownership of its label
+	if (box->label) {
+		b->label = strdup(box->label);
+	}
 	wl_list_insert(state->boxes.prev, &b->link);
 }
 
@@ -741,7 +746,8 @@ int main(int argc, char *argv[]) {
 
 	int opt;
 	char *format = "%x,%y %wx%h\n";
-	while ((opt = getopt(argc, argv, "hdb:c:s:w:pf:")) != -1) {
+	bool output_boxes = false;
+	while ((opt = getopt(argc, argv, "hdb:c:s:w:pof:")) != -1) {
 		switch (opt) {
 		case 'h':
 			printf("%s", usage);
@@ -774,6 +780,9 @@ int main(int argc, char *argv[]) {
 		case 'p':
 			state.single_point = true;
 			break;
+		case 'o':
+			output_boxes = true;
+			break;
 		default:
 			printf("%s", usage);
 			return EXIT_FAILURE;
@@ -792,6 +801,7 @@ int main(int argc, char *argv[]) {
 				return EXIT_FAILURE;
 			}
 			add_choice_box(&state, &in_box);
+			free(in_box.label);
 		}
 		free(line);
 	}
@@ -900,6 +910,13 @@ int main(int argc, char *argv[]) {
 	}
 	// second roundtrip for xdg-output
 	wl_display_roundtrip(state.display);
+
+	if (output_boxes) {
+		struct slurp_output *box_output;
+		wl_list_for_each(box_output, &state.outputs, link) {
+			add_choice_box(&state, &box_output->logical_geometry);
+		}
+	}
 
 	struct slurp_seat *seat;
 	wl_list_for_each(seat, &state.seats, link) {
