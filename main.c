@@ -443,6 +443,7 @@ static void xdg_output_handle_logical_position(void *data,
 	output->logical_geometry.x = x;
 	output->logical_geometry.y = y;
 }
+
 static void xdg_output_handle_logical_size(void *data,
 		struct zxdg_output_v1 *xdg_output, int32_t width, int32_t height) {
 	struct slurp_output *output = data;
@@ -450,11 +451,16 @@ static void xdg_output_handle_logical_size(void *data,
 	output->logical_geometry.height = height;
 }
 
+static void xdg_output_handle_name(void *data, struct zxdg_output_v1 *xdg_output, const char *name) {
+	struct slurp_output *output = data;
+	output->logical_geometry.label = strdup(name);
+}
+
 static const struct zxdg_output_v1_listener xdg_output_listener = {
 	.logical_position = xdg_output_handle_logical_position,
 	.logical_size = xdg_output_handle_logical_size,
 	.done = noop,
-	.name = noop,
+	.name = xdg_output_handle_name,
 	.description = noop,
 };
 
@@ -490,6 +496,7 @@ static void destroy_output(struct slurp_output *output) {
 		wl_callback_destroy(output->frame_callback);
 	}
 	wl_output_destroy(output->wl_output);
+	free(output->logical_geometry.label);
 	free(output);
 }
 
@@ -613,7 +620,7 @@ static void handle_global(void *data, struct wl_registry *registry,
 		create_output(state, wl_output);
 	} else if (strcmp(interface, zxdg_output_manager_v1_interface.name) == 0) {
 		state->xdg_output_manager = wl_registry_bind(registry, name,
-			&zxdg_output_manager_v1_interface, 1);
+			&zxdg_output_manager_v1_interface, 2);
 	}
 }
 
@@ -652,7 +659,23 @@ uint32_t parse_color(const char *color) {
 	return res;
 }
 
-static void print_formatted_result(const struct slurp_box *result,
+static void print_output_name(const struct slurp_box *result, struct wl_list *outputs) {
+	struct slurp_output *output;
+	wl_list_for_each(output, outputs, link) {
+		// For now just use the top-left corner
+		struct slurp_box *geometry = &output->logical_geometry;
+		if (in_box(geometry, result->x, result->y)) {
+			if (geometry->label) {
+				printf("%s", geometry->label);
+				return;
+			}
+			break;
+		}
+	}
+	printf("<unknown>");
+}
+
+static void print_formatted_result(const struct slurp_box *result, struct wl_list *outputs,
 		const char *format) {
 	for (size_t i = 0; format[i] != '\0'; i++) {
 		char c = format[i];
@@ -678,6 +701,9 @@ static void print_formatted_result(const struct slurp_box *result,
 					printf("%s", result->label);
 				}
 				continue;
+			case 'o':
+				print_output_name(result, outputs);
+				continue;
 			default:
 				// If no case was executed, revert i back - we don't need to
 				// skip the next character.
@@ -701,6 +727,8 @@ static void add_choice_box(struct slurp_state *state,
 }
 
 int main(int argc, char *argv[]) {
+	int status = EXIT_SUCCESS;
+
 	struct slurp_state state = {
 		.colors = {
 			.background = 0xFFFFFF40,
@@ -884,6 +912,14 @@ int main(int argc, char *argv[]) {
 		// This space intentionally left blank
 	}
 
+
+	if (state.result.width == 0 && state.result.height == 0) {
+		fprintf(stderr, "selection cancelled\n");
+		status = EXIT_FAILURE;
+	} else {
+		print_formatted_result(&state.result, &state.outputs, format);
+	}
+
 	struct slurp_output *output_tmp;
 	wl_list_for_each_safe(output, output_tmp, &state.outputs, link) {
 		destroy_output(output);
@@ -909,14 +945,9 @@ int main(int argc, char *argv[]) {
 	struct slurp_box *box, *box_tmp;
 	wl_list_for_each_safe(box, box_tmp, &state.boxes, link) {
 		wl_list_remove(&box->link);
+		free(box->label);
 		free(box);
 	}
 
-	if (state.result.width == 0 && state.result.height == 0) {
-		fprintf(stderr, "selection cancelled\n");
-		return EXIT_FAILURE;
-	}
-
-	print_formatted_result(&state.result, format);
-	return EXIT_SUCCESS;
+	return status;
 }

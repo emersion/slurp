@@ -68,6 +68,9 @@ Interpreted sequences are:
 
 %l	Label included with region from stdin
 
+%o	The name of the output containing the top left corner, or "<unknown>" if
+	not known
+
 The default format is "%x,%y %wx%h\\n".
 
 # AUTHORS
