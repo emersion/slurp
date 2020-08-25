@@ -54,7 +54,7 @@ void render(struct slurp_output *output) {
 				&seat->touch_selection :
 				&seat->pointer_selection;
 
-		if (!seat->wl_pointer || !current_selection->has_selection) {
+		if (!current_selection->has_selection) {
 			continue;
 		}
 
