@@ -68,7 +68,7 @@ Interpreted sequences are:
 
 %l	Label included with region from stdin
 
-The default format is "%x,%y %wx%h".
+The default format is "%x,%y %wx%h\\n".
 
 # AUTHORS
 

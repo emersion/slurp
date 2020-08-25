@@ -686,7 +686,7 @@ static void print_formatted_result(const struct slurp_box *result,
 		}
 		printf("%c", c);
 	}
-	printf("\n");
+    fflush(stdout);
 }
 
 static void add_choice_box(struct slurp_state *state,
@@ -712,7 +712,7 @@ int main(int argc, char *argv[]) {
 	};
 
 	int opt;
-	char *format = "%x,%y %wx%h";
+	char *format = "%x,%y %wx%h\n";
 	while ((opt = getopt(argc, argv, "hdb:c:s:w:pf:")) != -1) {
 		switch (opt) {
 		case 'h':
