@@ -38,7 +38,7 @@ Select a single point instead of a region:
 slurp -p
 ```
 
-Select an output:
+Select an output and print its name:
 
 ```sh
 slurp -o -f "%o"
