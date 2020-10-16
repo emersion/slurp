@@ -38,10 +38,10 @@ Select a single point instead of a region:
 slurp -p
 ```
 
-Select an output under Sway, using `swaymsg` and `jq`:
+Select an output:
 
 ```sh
-swaymsg -t get_outputs | jq -r '.[] | select(.active) | .rect | "\(.x),\(.y) \(.width)x\(.height)"' | slurp
+slurp -o -f "%o"
 ```
 
 Select a window under Sway, using `swaymsg` and `jq`:
