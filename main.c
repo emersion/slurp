@@ -671,23 +671,23 @@ uint32_t parse_color(const char *color) {
 	return res;
 }
 
-static void print_output_name(const struct slurp_box *result, struct wl_list *outputs) {
+static void print_output_name(FILE *stream, const struct slurp_box *result, struct wl_list *outputs) {
 	struct slurp_output *output;
 	wl_list_for_each(output, outputs, link) {
 		// For now just use the top-left corner
 		struct slurp_box *geometry = &output->logical_geometry;
 		if (in_box(geometry, result->x, result->y)) {
 			if (geometry->label) {
-				printf("%s", geometry->label);
+				fprintf(stream, "%s", geometry->label);
 				return;
 			}
 			break;
 		}
 	}
-	printf("<unknown>");
+	fprintf(stream, "<unknown>");
 }
 
-static void print_formatted_result(const struct slurp_box *result, struct wl_list *outputs,
+static void print_formatted_result(FILE *stream, const struct slurp_box *result, struct wl_list *outputs,
 		const char *format) {
 	for (size_t i = 0; format[i] != '\0'; i++) {
 		char c = format[i];
@@ -697,24 +697,24 @@ static void print_formatted_result(const struct slurp_box *result, struct wl_lis
 			i++; // Skip the next character (x, y, w or h)
 			switch (next) {
 			case 'x':
-				printf("%d", result->x);
+				fprintf(stream, "%d", result->x);
 				continue;
 			case 'y':
-				printf("%d", result->y);
+				fprintf(stream, "%d", result->y);
 				continue;
 			case 'w':
-				printf("%d", result->width);
+				fprintf(stream, "%d", result->width);
 				continue;
 			case 'h':
-				printf("%d", result->height);
+				fprintf(stream, "%d", result->height);
 				continue;
 			case 'l':
 				if (result->label) {
-					printf("%s", result->label);
+					fprintf(stream, "%s", result->label);
 				}
 				continue;
 			case 'o':
-				print_output_name(result, outputs);
+				print_output_name(stream, result, outputs);
 				continue;
 			default:
 				// If no case was executed, revert i back - we don't need to
@@ -722,9 +722,8 @@ static void print_formatted_result(const struct slurp_box *result, struct wl_lis
 				i--;
 			}
 		}
-		printf("%c", c);
+		fprintf(stream, "%c", c);
 	}
-    fflush(stdout);
 }
 
 static void add_choice_box(struct slurp_state *state,
@@ -744,6 +743,10 @@ static void add_choice_box(struct slurp_state *state,
 
 int main(int argc, char *argv[]) {
 	int status = EXIT_SUCCESS;
+
+	char *result_str = 0;
+	size_t length;
+	FILE *stream = open_memstream(&result_str, &length);
 
 	struct slurp_state state = {
 		.colors = {
@@ -953,12 +956,12 @@ int main(int argc, char *argv[]) {
 		// This space intentionally left blank
 	}
 
-
 	if (state.result.width == 0 && state.result.height == 0) {
 		fprintf(stderr, "selection cancelled\n");
 		status = EXIT_FAILURE;
 	} else {
-		print_formatted_result(&state.result, &state.outputs, format);
+		print_formatted_result(stream, &state.result, &state.outputs, format);
+		fclose(stream);
 	}
 
 	struct slurp_output *output_tmp;
@@ -988,6 +991,11 @@ int main(int argc, char *argv[]) {
 		wl_list_remove(&box->link);
 		free(box->label);
 		free(box);
+	}
+
+	if (result_str) {
+		printf(result_str);
+		free(result_str);
 	}
 
 	return status;
