@@ -994,7 +994,7 @@ int main(int argc, char *argv[]) {
 	}
 
 	if (result_str) {
-		printf(result_str);
+		printf("%s", result_str);
 		free(result_str);
 	}
 
