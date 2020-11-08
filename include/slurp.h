@@ -53,6 +53,8 @@ struct slurp_state {
 	bool single_point;
 	bool restrict_selection;
 	struct wl_list boxes; // slurp_box::link
+	bool fixed_aspect;
+	double aspect_ratio;  // h / w
 
 	struct slurp_box result;
 };

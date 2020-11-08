@@ -132,16 +132,25 @@ static void pointer_handle_leave(void *data, struct wl_pointer *wl_pointer,
 	seat->pointer_selection.current_output = NULL;
 }
 
-static void handle_active_selection_motion(struct slurp_seat *seat, struct slurp_selection *current_selection) {
+static void handle_active_selection_motion(struct slurp_seat *seat,
+		struct slurp_selection *current_selection) {
 	int32_t anchor_x = max(0, current_selection->anchor_x);
 	int32_t anchor_y = max(0, current_selection->anchor_y);
-	current_selection->selection.x = min(anchor_x, current_selection->x);
-	current_selection->selection.y = min(anchor_y, current_selection->y);
+	int32_t dist_x = current_selection->x - anchor_x;
+	int32_t dist_y = current_selection->y - anchor_y;
+
 	// selection includes the seat and anchor positions
-	current_selection->selection.width =
-		abs(current_selection->x - anchor_x) + 1;
-	current_selection->selection.height =
-		abs(current_selection->y - anchor_y) + 1;
+	int32_t width = abs(dist_x) + 1;
+	int32_t height = abs(dist_y) + 1;
+	if (seat->state->fixed_aspect) {
+		width = min(width, height / seat->state->aspect_ratio);
+		height = min(height, width * seat->state->aspect_ratio);
+	}
+
+	current_selection->selection.x = dist_x > 0 ? anchor_x : anchor_x - (width - 1);
+	current_selection->selection.y = dist_y > 0 ? anchor_y : anchor_y - (height - 1);
+	current_selection->selection.width = width;
+	current_selection->selection.height = height;
 }
 
 static void pointer_handle_motion(void *data, struct wl_pointer *wl_pointer,
@@ -651,7 +660,8 @@ static const char usage[] =
 	"  -f s         Set output format.\n"
 	"  -o           Select a display output.\n"
 	"  -p           Select a single point.\n"
-	"  -r           Restrict selection to predefined boxes.\n";
+	"  -r           Restrict selection to predefined boxes.\n"
+	"  -a w:h       Force aspect ratio.\n";
 
 uint32_t parse_color(const char *color) {
 	if (color[0] == '#') {
@@ -758,12 +768,13 @@ int main(int argc, char *argv[]) {
 		.border_weight = 2,
 		.display_dimensions = false,
 		.restrict_selection = false,
+		.fixed_aspect = false,
 	};
 
 	int opt;
 	char *format = "%x,%y %wx%h\n";
 	bool output_boxes = false;
-	while ((opt = getopt(argc, argv, "hdb:c:s:B:w:prof:")) != -1) {
+	while ((opt = getopt(argc, argv, "hdb:c:s:B:w:proa:f:")) != -1) {
 		switch (opt) {
 		case 'h':
 			printf("%s", usage);
@@ -804,6 +815,15 @@ int main(int argc, char *argv[]) {
 			break;
 		case 'r':
 			state.restrict_selection = true;
+			break;
+		case 'a':
+			state.fixed_aspect = true;
+			int w, h;
+			if (sscanf(optarg, "%d:%d", &w, &h) < 2) {
+				fprintf(stderr, "invalid aspect ratio\n");
+				return EXIT_FAILURE;
+			}
+			state.aspect_ratio = (double) h / w;
 			break;
 		default:
 			printf("%s", usage);
