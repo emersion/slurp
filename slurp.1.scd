@@ -63,6 +63,10 @@ held, the selection is moved instead of being resized.
 	from standard input, if *-o* is used, the rectangles of all display outputs.
 	This option conflicts with *-p*.
 
+*-a* _width_:_height_
+	Force selections to have the given aspect ratio. This constraint is not
+	applied to the predefined rectangles specified using *-o*.
+
 # COLORS
 
 Colors may be specified in #RRGGBB or #RRGGBBAA format. The # is optional.
