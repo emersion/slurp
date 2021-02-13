@@ -96,6 +96,18 @@ static void seat_set_outputs_dirty(struct slurp_seat *seat) {
 	}
 }
 
+static void handle_active_selection_motion(struct slurp_seat *seat, struct slurp_selection *current_selection) {
+	int32_t anchor_x = current_selection->anchor_x;
+	int32_t anchor_y = current_selection->anchor_y;
+	current_selection->selection.x = min(anchor_x, current_selection->x);
+	current_selection->selection.y = min(anchor_y, current_selection->y);
+	// selection includes the seat and anchor positions
+	current_selection->selection.width =
+		abs(current_selection->x - anchor_x) + 1;
+	current_selection->selection.height =
+		abs(current_selection->y - anchor_y) + 1;
+}
+
 static void pointer_handle_enter(void *data, struct wl_pointer *wl_pointer,
 		uint32_t serial, struct wl_surface *surface,
 		wl_fixed_t surface_x, wl_fixed_t surface_y) {
@@ -108,7 +120,16 @@ static void pointer_handle_enter(void *data, struct wl_pointer *wl_pointer,
 	seat->pointer_selection.current_output = output;
 
 	move_seat(seat, surface_x, surface_y, &seat->pointer_selection);
-	seat_update_selection(seat);
+
+	switch (seat->button_state) {
+	case WL_POINTER_BUTTON_STATE_RELEASED:
+		seat_update_selection(seat);
+		break;
+	case WL_POINTER_BUTTON_STATE_PRESSED:;
+		handle_active_selection_motion(seat, &seat->pointer_selection);
+		break;
+	}
+
 	seat_set_outputs_dirty(seat);
 
 	wl_surface_set_buffer_scale(seat->cursor_surface, output->scale);
@@ -126,18 +147,6 @@ static void pointer_handle_leave(void *data, struct wl_pointer *wl_pointer,
 
 	// TODO: handle multiple overlapping outputs
 	seat->pointer_selection.current_output = NULL;
-}
-
-static void handle_active_selection_motion(struct slurp_seat *seat, struct slurp_selection *current_selection) {
-	int32_t anchor_x = current_selection->anchor_x;
-	int32_t anchor_y = current_selection->anchor_y;
-	current_selection->selection.x = min(anchor_x, current_selection->x);
-	current_selection->selection.y = min(anchor_y, current_selection->y);
-	// selection includes the seat and anchor positions
-	current_selection->selection.width =
-		abs(current_selection->x - anchor_x) + 1;
-	current_selection->selection.height =
-		abs(current_selection->y - anchor_y) + 1;
 }
 
 static void pointer_handle_motion(void *data, struct wl_pointer *wl_pointer,
