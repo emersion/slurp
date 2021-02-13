@@ -45,10 +45,6 @@ static int min(int a, int b) {
 	return (a < b) ? a : b;
 }
 
-static int max(int a, int b) {
-	return (a > b) ? a : b;
-}
-
 static struct slurp_output *output_from_surface(struct slurp_state *state,
 	struct wl_surface *surface);
 
@@ -133,8 +129,8 @@ static void pointer_handle_leave(void *data, struct wl_pointer *wl_pointer,
 }
 
 static void handle_active_selection_motion(struct slurp_seat *seat, struct slurp_selection *current_selection) {
-	int32_t anchor_x = max(0, current_selection->anchor_x);
-	int32_t anchor_y = max(0, current_selection->anchor_y);
+	int32_t anchor_x = current_selection->anchor_x;
+	int32_t anchor_y = current_selection->anchor_y;
 	current_selection->selection.x = min(anchor_x, current_selection->x);
 	current_selection->selection.y = min(anchor_y, current_selection->y);
 	// selection includes the seat and anchor positions
