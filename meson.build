@@ -1,7 +1,7 @@
 project(
 	'slurp',
 	'c',
-	version: '1.3.1',
+	version: '1.3.2',
 	license: 'MIT',
 	meson_version: '>=0.48.0',
 	default_options: [
