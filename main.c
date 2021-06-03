@@ -116,6 +116,17 @@ static void pointer_handle_enter(void *data, struct wl_pointer *wl_pointer,
 	if (output == NULL) {
 		return;
 	}
+
+	// the places the cursor moved away from are also dirty
+	// TODO: This should dirty outputs the current value
+	// pointer_selection.selection _after_ calling move_seat.  Currently there
+	// is a race condition when render executes after outputs are dirtied using
+	// the current value, but before the selection is updated. In that case, the
+	// the current output will never be dirtied for the new value of pointer_selection.
+	if (seat->pointer_selection.has_selection) {
+		seat_set_outputs_dirty(seat);
+	}
+
 	// TODO: handle multiple overlapping outputs
 	seat->pointer_selection.current_output = output;
 
@@ -153,6 +164,11 @@ static void pointer_handle_motion(void *data, struct wl_pointer *wl_pointer,
 		uint32_t time, wl_fixed_t surface_x, wl_fixed_t surface_y) {
 	struct slurp_seat *seat = data;
 	// the places the cursor moved away from are also dirty
+	// TODO: This should dirty outputs the current value
+	// pointer_selection.selection _after_ calling move_seat.  Currently there
+	// is a race condition when render executes after outputs are dirtied using
+	// the current value, but before the selection is updated. In that case, the
+	// the current output will never be dirtied for the new value of pointer_selection.
 	if (seat->pointer_selection.has_selection) {
 		seat_set_outputs_dirty(seat);
 	}
