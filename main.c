@@ -97,6 +97,10 @@ static void seat_set_outputs_dirty(struct slurp_seat *seat) {
 }
 
 static void handle_active_selection_motion(struct slurp_seat *seat, struct slurp_selection *current_selection) {
+	if(seat->state->restrict_selection){
+		return;
+	}
+
 	int32_t anchor_x = current_selection->anchor_x;
 	int32_t anchor_y = current_selection->anchor_y;
 	current_selection->has_selection = true;
