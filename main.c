@@ -116,6 +116,12 @@ static void pointer_handle_enter(void *data, struct wl_pointer *wl_pointer,
 	if (output == NULL) {
 		return;
 	}
+
+	// the places the cursor moved away from are also dirty
+	if (seat->pointer_selection.has_selection) {
+		seat_set_outputs_dirty(seat);
+	}
+
 	// TODO: handle multiple overlapping outputs
 	seat->pointer_selection.current_output = output;
 
