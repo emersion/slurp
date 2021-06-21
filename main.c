@@ -97,8 +97,13 @@ static void seat_set_outputs_dirty(struct slurp_seat *seat) {
 }
 
 static void handle_active_selection_motion(struct slurp_seat *seat, struct slurp_selection *current_selection) {
+	if(seat->state->restrict_selection){
+		return;
+	}
+
 	int32_t anchor_x = current_selection->anchor_x;
 	int32_t anchor_y = current_selection->anchor_y;
+	current_selection->has_selection = true;
 	current_selection->selection.x = min(anchor_x, current_selection->x);
 	current_selection->selection.y = min(anchor_y, current_selection->y);
 	// selection includes the seat and anchor positions
@@ -194,7 +199,6 @@ static void handle_selection_start(struct slurp_seat *seat,
 			state->running = false;
 		}
 	} else {
-		current_selection->has_selection = true;
 		current_selection->anchor_x = current_selection->x;
 		current_selection->anchor_y = current_selection->y;
 	}
