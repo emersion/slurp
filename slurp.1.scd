@@ -4,11 +4,11 @@ slurp(1)
 
 slurp - select a region in a Wayland compositor
 
-# DESCRIPTION
+# SYNOPSIS
 
 *slurp* [options...]
 
-# SYNOPSIS
+# DESCRIPTION
 
 slurp is a command-line utility to select a region from Wayland compositors
 which support the layer-shell protocol. It lets the user hold the pointer to
