@@ -64,7 +64,7 @@ static const struct wl_buffer_listener buffer_listener = {
 };
 
 static struct pool_buffer *create_buffer(struct wl_shm *shm,
-		struct pool_buffer *buf, int32_t width, int32_t height) {
+		struct pool_buffer *buf, int32_t width, int32_t height, double scale) {
 	const enum wl_shm_format wl_fmt = WL_SHM_FORMAT_ARGB8888;
 	const cairo_format_t cairo_fmt = CAIRO_FORMAT_ARGB32;
 
@@ -97,9 +97,11 @@ static struct pool_buffer *create_buffer(struct wl_shm *shm,
 	buf->size = size;
 	buf->width = width;
 	buf->height = height;
+	buf->scale = scale;
 	buf->surface = cairo_image_surface_create_for_data(data, cairo_fmt, width,
 		height, stride);
 	buf->cairo = cairo_create(buf->surface);
+	cairo_scale(buf->cairo, scale, scale);
 	return buf;
 }
 
@@ -120,7 +122,11 @@ void finish_buffer(struct pool_buffer *buffer) {
 }
 
 struct pool_buffer *get_next_buffer(struct wl_shm *shm,
-		struct pool_buffer pool[static 2], uint32_t width, uint32_t height) {
+		struct pool_buffer pool[static 2], uint32_t width, uint32_t height, double scale) {
+
+	uint32_t buffer_width = width * scale;
+	uint32_t buffer_height = height * scale;
+
 	struct pool_buffer *buffer = NULL;
 	for (size_t i = 0; i < 2; ++i) {
 		if (pool[i].busy) {
@@ -132,12 +138,20 @@ struct pool_buffer *get_next_buffer(struct wl_shm *shm,
 		return NULL;
 	}
 
-	if (buffer->width != width || buffer->height != height) {
+	if (buffer->width != buffer_width || buffer->height != buffer_height) {
 		finish_buffer(buffer);
+	} else if (buffer->scale != scale) {
+		// This is a matrix that multiples both x and y values by scale.
+		cairo_matrix_t scale_matrix = {
+			scale, 0,
+			0,     scale,
+			0,     0,
+		};
+		cairo_set_matrix(buffer->cairo, &scale_matrix);
 	}
 
 	if (!buffer->buffer) {
-		if (!create_buffer(shm, buffer, width, height)) {
+		if (!create_buffer(shm, buffer, buffer_width, buffer_height, scale)) {
 			return NULL;
 		}
 	}
