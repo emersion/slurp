@@ -533,11 +533,16 @@ static void send_frame(struct slurp_output *output) {
 		return;
 	}
 
+	int32_t buffer_width = output->width * output->scale;
+	int32_t buffer_height = output->height * output->scale;
+
 	output->current_buffer = get_next_buffer(state->shm, output->buffers,
-		output->width, output->height, output->scale);
+		buffer_width, buffer_height);
 	if (output->current_buffer == NULL) {
 		return;
 	}
+	cairo_identity_matrix(output->current_buffer->cairo);
+	cairo_scale(output->current_buffer->cairo, output->scale, output->scale);
 
 	render(output);
 
