@@ -541,6 +541,8 @@ static void send_frame(struct slurp_output *output) {
 	if (output->current_buffer == NULL) {
 		return;
 	}
+	cairo_identity_matrix(output->current_buffer->cairo);
+	cairo_scale(output->current_buffer->cairo, output->scale, output->scale);
 
 	render(output);
 
