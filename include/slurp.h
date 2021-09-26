@@ -5,19 +5,13 @@
 #include <stdint.h>
 #include <wayland-client.h>
 
+#include "box.h"
 #include "cursor-shape-v1-client-protocol.h"
 #include "pool-buffer.h"
 #include "wlr-layer-shell-unstable-v1-client-protocol.h"
 #include "xdg-output-unstable-v1-client-protocol.h"
 
 #define TOUCH_ID_EMPTY -1
-
-struct slurp_box {
-  int32_t x, y;
-  int32_t width, height;
-  char *label;
-  struct wl_list link;
-};
 
 struct slurp_selection {
   struct slurp_output *current_output;
