@@ -582,6 +582,7 @@ static void send_frame(struct slurp_output *output) {
 
 	cairo_identity_matrix(output->current_buffer->cairo);
 	cairo_scale(output->current_buffer->cairo, output->scale, output->scale);
+	cairo_translate(output->current_buffer->cairo, -output->logical_geometry.x, -output->logical_geometry.y);
 
 	render(output);
 
