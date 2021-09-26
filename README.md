@@ -3,13 +3,12 @@
 Select a region in a Wayland compositor and print it to the standard output.
 Works well with [grim](https://github.com/emersion/grim).
 
-It currently works on Sway 1.0.
-
-Join the IRC channel: ##emersion on Freenode.
+Join the IRC channel: #emersion on Libera Chat.
 
 ## Building
 
 Install dependencies:
+
 * meson
 * wayland
 * cairo
@@ -38,10 +37,10 @@ Select a single point instead of a region:
 slurp -p
 ```
 
-Select an output under Sway, using `swaymsg` and `jq`:
+Select an output and print its name:
 
 ```sh
-swaymsg -t get_outputs | jq -r '.[] | select(.active) | .rect | "\(.x),\(.y) \(.width)x\(.height)"' | slurp
+slurp -o -f "%o"
 ```
 
 Select a window under Sway, using `swaymsg` and `jq`:

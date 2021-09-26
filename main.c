@@ -1,4 +1,4 @@
-#define _POSIX_C_SOURCE 2
+#define _POSIX_C_SOURCE 200809L
 
 #include <errno.h>
 #include <stdio.h>
@@ -13,6 +13,10 @@
 #include "slurp.h"
 #include "render.h"
 
+#define BG_COLOR 0xFFFFFF40
+#define BORDER_COLOR 0x000000FF
+#define SELECTION_COLOR 0x00000000
+
 static void noop() {
 	// This space intentionally left blank
 }
@@ -24,6 +28,21 @@ bool box_intersect(const struct slurp_box *a, const struct slurp_box *b) {
 		a->x + a->width > b->x &&
 		a->y < b->y + b->height &&
 		a->height + a->y > b->y;
+}
+
+static bool in_box(const struct slurp_box *box, int32_t x, int32_t y) {
+	return box->x <= x
+		&& box->x + box->width > x
+		&& box->y <= y
+		&& box->y + box->height > y;
+}
+
+static int32_t box_size(const struct slurp_box *box) {
+	return box->width * box->height;
+}
+
+static int min(int a, int b) {
+	return (a < b) ? a : b;
 }
 
 static struct slurp_output *output_from_surface(struct slurp_state *state,
@@ -45,6 +64,57 @@ static void move_seat(struct slurp_seat *seat, wl_fixed_t surface_x,
 	current_selection->y = y;
 }
 
+static void seat_update_selection(struct slurp_seat *seat) {
+	seat->pointer_selection.has_selection = false;
+
+	// find smallest box intersecting the cursor
+	struct slurp_box *box;
+	wl_list_for_each(box, &seat->state->boxes, link) {
+		if (in_box(box, seat->pointer_selection.x,
+			   seat->pointer_selection.y)) {
+			if (seat->pointer_selection.has_selection &&
+				box_size(
+					&seat->pointer_selection.selection) <
+					box_size(box)) {
+				continue;
+			}
+			seat->pointer_selection.selection = *box;
+			seat->pointer_selection.has_selection = true;
+		}
+	}
+}
+
+static void seat_set_outputs_dirty(struct slurp_seat *seat) {
+	struct slurp_state *state = seat->state;
+	struct slurp_output *output;
+	wl_list_for_each(output, &seat->state->outputs, link) {
+		if (box_intersect(&output->logical_geometry,
+			&seat->pointer_selection.selection) ||
+			box_intersect(&output->logical_geometry,
+			&seat->touch_selection.selection) ||
+			state->crosshairs) {
+			set_output_dirty(output);
+		}
+	}
+}
+
+static void handle_active_selection_motion(struct slurp_seat *seat, struct slurp_selection *current_selection) {
+	if(seat->state->restrict_selection){
+		return;
+	}
+
+	int32_t anchor_x = current_selection->anchor_x;
+	int32_t anchor_y = current_selection->anchor_y;
+	current_selection->has_selection = true;
+	current_selection->selection.x = min(anchor_x, current_selection->x);
+	current_selection->selection.y = min(anchor_y, current_selection->y);
+	// selection includes the seat and anchor positions
+	current_selection->selection.width =
+		abs(current_selection->x - anchor_x) + 1;
+	current_selection->selection.height =
+		abs(current_selection->y - anchor_y) + 1;
+}
+
 static void pointer_handle_enter(void *data, struct wl_pointer *wl_pointer,
 		uint32_t serial, struct wl_surface *surface,
 		wl_fixed_t surface_x, wl_fixed_t surface_y) {
@@ -53,10 +123,27 @@ static void pointer_handle_enter(void *data, struct wl_pointer *wl_pointer,
 	if (output == NULL) {
 		return;
 	}
+
+	// the places the cursor moved away from are also dirty
+	if (seat->pointer_selection.has_selection) {
+		seat_set_outputs_dirty(seat);
+	}
+
 	// TODO: handle multiple overlapping outputs
 	seat->pointer_selection.current_output = output;
 
 	move_seat(seat, surface_x, surface_y, &seat->pointer_selection);
+
+	switch (seat->button_state) {
+	case WL_POINTER_BUTTON_STATE_RELEASED:
+		seat_update_selection(seat);
+		break;
+	case WL_POINTER_BUTTON_STATE_PRESSED:;
+		handle_active_selection_motion(seat, &seat->pointer_selection);
+		break;
+	}
+
+	seat_set_outputs_dirty(seat);
 
 	wl_surface_set_buffer_scale(seat->cursor_surface, output->scale);
 	wl_surface_attach(seat->cursor_surface,
@@ -75,51 +162,6 @@ static void pointer_handle_leave(void *data, struct wl_pointer *wl_pointer,
 	seat->pointer_selection.current_output = NULL;
 }
 
-static void seat_set_outputs_dirty(struct slurp_seat *seat) {
-	struct slurp_state *state = seat->state;
-	struct slurp_output *output;
-	wl_list_for_each(output, &seat->state->outputs, link) {
-		if (box_intersect(&output->logical_geometry,
-			&seat->pointer_selection.selection) ||
-		    box_intersect(&output->logical_geometry,
-			&seat->touch_selection.selection) ||
-			state->crosshairs) {
-			set_output_dirty(output);
-		}
-	}
-}
-
-static bool in_box(const struct slurp_box *box, int32_t x, int32_t y) {
-	return box->x <= x
-		&& box->x + box->width >= x
-		&& box->y <= y
-		&& box->y + box->height >= y;
-}
-
-static int32_t box_size(const struct slurp_box *box) {
-	return box->width * box->height;
-}
-
-static int min(int a, int b) {
-	return (a < b) ? a : b;
-}
-
-static int max(int a, int b) {
-	return (a > b) ? a : b;
-}
-
-static void handle_active_selection_motion(struct slurp_seat *seat, struct slurp_selection *current_selection) {
-	int32_t anchor_x = max(0, current_selection->anchor_x);
-	int32_t anchor_y = max(0, current_selection->anchor_y);
-	current_selection->selection.x = min(anchor_x, current_selection->x);
-	current_selection->selection.y = min(anchor_y, current_selection->y);
-	// selection includes the seat and anchor positions
-	current_selection->selection.width =
-		abs(current_selection->x - anchor_x) + 1;
-	current_selection->selection.height =
-		abs(current_selection->y - anchor_y) + 1;
-}
-
 static void pointer_handle_motion(void *data, struct wl_pointer *wl_pointer,
 		uint32_t time, wl_fixed_t surface_x, wl_fixed_t surface_y) {
 	struct slurp_seat *seat = data;
@@ -134,23 +176,7 @@ static void pointer_handle_motion(void *data, struct wl_pointer *wl_pointer,
 
 	switch (seat->button_state) {
 	case WL_POINTER_BUTTON_STATE_RELEASED:
-		seat->pointer_selection.has_selection = false;
-
-		// find smallest box intersecting the cursor
-		struct slurp_box *box;
-		wl_list_for_each(box, &seat->state->boxes, link) {
-			if (in_box(box, seat->pointer_selection.x,
-				   seat->pointer_selection.y)) {
-				if (seat->pointer_selection.has_selection &&
-				    box_size(
-					    &seat->pointer_selection.selection) <
-					    box_size(box)) {
-					continue;
-				}
-				seat->pointer_selection.selection = *box;
-				seat->pointer_selection.has_selection = true;
-			}
-		}
+		seat_update_selection(seat);
 		break;
 	case WL_POINTER_BUTTON_STATE_PRESSED:;
 		handle_active_selection_motion(seat, &seat->pointer_selection);
@@ -165,13 +191,17 @@ static void pointer_handle_motion(void *data, struct wl_pointer *wl_pointer,
 static void handle_selection_start(struct slurp_seat *seat,
 				   struct slurp_selection *current_selection) {
 	struct slurp_state *state = seat->state;
-	current_selection->has_selection = true;
-	
+
 	if (state->single_point) {
 		state->result.x = current_selection->x;
 		state->result.y = current_selection->y;
 		state->result.width = state->result.height = 1;
 		state->running = false;
+	} else if (state->restrict_selection) {
+		if (current_selection->has_selection) {
+			state->result = current_selection->selection;
+			state->running = false;
+		}
 	} else {
 		current_selection->anchor_x = current_selection->x;
 		current_selection->anchor_y = current_selection->y;
@@ -181,7 +211,7 @@ static void handle_selection_start(struct slurp_seat *seat,
 static void handle_selection_end(struct slurp_seat *seat,
 				 struct slurp_selection *current_selection) {
 	struct slurp_state *state = seat->state;
-	if (state->single_point) {
+	if (state->single_point || state->restrict_selection) {
 		return;
 	}
 	if (current_selection->has_selection) {
@@ -441,6 +471,7 @@ static void xdg_output_handle_logical_position(void *data,
 	output->logical_geometry.x = x;
 	output->logical_geometry.y = y;
 }
+
 static void xdg_output_handle_logical_size(void *data,
 		struct zxdg_output_v1 *xdg_output, int32_t width, int32_t height) {
 	struct slurp_output *output = data;
@@ -448,11 +479,16 @@ static void xdg_output_handle_logical_size(void *data,
 	output->logical_geometry.height = height;
 }
 
+static void xdg_output_handle_name(void *data, struct zxdg_output_v1 *xdg_output, const char *name) {
+	struct slurp_output *output = data;
+	output->logical_geometry.label = strdup(name);
+}
+
 static const struct zxdg_output_v1_listener xdg_output_listener = {
 	.logical_position = xdg_output_handle_logical_position,
 	.logical_size = xdg_output_handle_logical_size,
 	.done = noop,
-	.name = noop,
+	.name = xdg_output_handle_name,
 	.description = noop,
 };
 
@@ -488,6 +524,7 @@ static void destroy_output(struct slurp_output *output) {
 		wl_callback_destroy(output->frame_callback);
 	}
 	wl_output_destroy(output->wl_output);
+	free(output->logical_geometry.label);
 	free(output);
 }
 
@@ -508,6 +545,8 @@ static void send_frame(struct slurp_output *output) {
 	if (output->current_buffer == NULL) {
 		return;
 	}
+	cairo_identity_matrix(output->current_buffer->cairo);
+	cairo_scale(output->current_buffer->cairo, output->scale, output->scale);
 
 	render(output);
 
@@ -611,7 +650,7 @@ static void handle_global(void *data, struct wl_registry *registry,
 		create_output(state, wl_output);
 	} else if (strcmp(interface, zxdg_output_manager_v1_interface.name) == 0) {
 		state->xdg_output_manager = wl_registry_bind(registry, name,
-			&zxdg_output_manager_v1_interface, 1);
+			&zxdg_output_manager_v1_interface, 2);
 	}
 }
 
@@ -628,9 +667,12 @@ static const char usage[] =
 	"  -b #rrggbbaa Set background color.\n"
 	"  -c #rrggbbaa Set border color.\n"
 	"  -s #rrggbbaa Set selection color.\n"
+	"  -B #rrggbbaa Set option box color.\n"
 	"  -w n         Set border weight.\n"
 	"  -f s         Set output format.\n"
-	"  -p           Select a single point.\n";
+	"  -o           Select a display output.\n"
+	"  -p           Select a single point.\n"
+	"  -r           Restrict selection to predefined boxes.\n";
 
 uint32_t parse_color(const char *color) {
 	if (color[0] == '#') {
@@ -650,7 +692,23 @@ uint32_t parse_color(const char *color) {
 	return res;
 }
 
-static void print_formatted_result(const struct slurp_box *result,
+static void print_output_name(FILE *stream, const struct slurp_box *result, struct wl_list *outputs) {
+	struct slurp_output *output;
+	wl_list_for_each(output, outputs, link) {
+		// For now just use the top-left corner
+		struct slurp_box *geometry = &output->logical_geometry;
+		if (in_box(geometry, result->x, result->y)) {
+			if (geometry->label) {
+				fprintf(stream, "%s", geometry->label);
+				return;
+			}
+			break;
+		}
+	}
+	fprintf(stream, "<unknown>");
+}
+
+static void print_formatted_result(FILE *stream, const struct slurp_box *result, struct wl_list *outputs,
 		const char *format) {
 	for (size_t i = 0; format[i] != '\0'; i++) {
 		char c = format[i];
@@ -660,16 +718,24 @@ static void print_formatted_result(const struct slurp_box *result,
 			i++; // Skip the next character (x, y, w or h)
 			switch (next) {
 			case 'x':
-				printf("%u", result->x);
+				fprintf(stream, "%d", result->x);
 				continue;
 			case 'y':
-				printf("%u", result->y);
+				fprintf(stream, "%d", result->y);
 				continue;
 			case 'w':
-				printf("%u", result->width);
+				fprintf(stream, "%d", result->width);
 				continue;
 			case 'h':
-				printf("%u", result->height);
+				fprintf(stream, "%d", result->height);
+				continue;
+			case 'l':
+				if (result->label) {
+					fprintf(stream, "%s", result->label);
+				}
+				continue;
+			case 'o':
+				print_output_name(stream, result, outputs);
 				continue;
 			default:
 				// If no case was executed, revert i back - we don't need to
@@ -677,9 +743,8 @@ static void print_formatted_result(const struct slurp_box *result,
 				i--;
 			}
 		}
-		printf("%c", c);
+		fprintf(stream, "%c", c);
 	}
-	printf("\n");
 }
 
 static void add_choice_box(struct slurp_state *state,
@@ -690,23 +755,36 @@ static void add_choice_box(struct slurp_state *state,
 		return;
 	}
 	*b = *box;
+	// copy label, so that this has ownership of its label
+	if (box->label) {
+		b->label = strdup(box->label);
+	}
 	wl_list_insert(state->boxes.prev, &b->link);
 }
 
 int main(int argc, char *argv[]) {
+	int status = EXIT_SUCCESS;
+
+	char *result_str = 0;
+	size_t length;
+	FILE *stream = open_memstream(&result_str, &length);
+
 	struct slurp_state state = {
 		.colors = {
-			.background = 0xFFFFFF40,
-			.border = 0x000000FF,
-			.selection = 0x00000000,
+			.background = BG_COLOR,
+			.border = BORDER_COLOR,
+			.selection = SELECTION_COLOR,
+			.choice = BG_COLOR,
 		},
 		.border_weight = 2,
 		.display_dimensions = false,
+		.restrict_selection = false,
 	};
 
 	int opt;
-	char *format = "%x,%y %wx%h";
-	while ((opt = getopt(argc, argv, "hdb:c:s:w:pf:x")) != -1) {
+	char *format = "%x,%y %wx%h\n";
+	bool output_boxes = false;
+	while ((opt = getopt(argc, argv, "hdb:c:s:B:w:prof:x")) != -1) {
 		switch (opt) {
 		case 'h':
 			printf("%s", usage);
@@ -722,6 +800,9 @@ int main(int argc, char *argv[]) {
 			break;
 		case 's':
 			state.colors.selection = parse_color(optarg);
+			break;
+		case 'B':
+			state.colors.choice = parse_color(optarg);
 			break;
 		case 'f':
 			format = optarg;
@@ -742,19 +823,38 @@ int main(int argc, char *argv[]) {
 		case 'x':
 			state.crosshairs = true;
 			break;
+		case 'o':
+			output_boxes = true;
+			break;
+		case 'r':
+			state.restrict_selection = true;
+			break;
 		default:
 			printf("%s", usage);
 			return EXIT_FAILURE;
 		}
 	}
 
+	if (state.single_point && state.restrict_selection) {
+		fprintf(stderr, "-p and -r cannot be used together\n");
+		return EXIT_FAILURE;
+	}
+
 	wl_list_init(&state.boxes);
 	if (!isatty(STDIN_FILENO) && !state.single_point) {
-		struct slurp_box in_box = {0};
-		while (fscanf(stdin, "%d,%d %dx%d\n", &in_box.x, &in_box.y,
-				&in_box.width, &in_box.height) == 4) {
+		char *line = NULL;
+		size_t line_size = 0;
+		while (getline(&line, &line_size, stdin) >= 0) {
+			struct slurp_box in_box = {0};
+			if (sscanf(line, "%d,%d %dx%d %m[^\n]", &in_box.x, &in_box.y,
+					&in_box.width, &in_box.height, &in_box.label) < 4) {
+				fprintf(stderr, "invalid box format: %s\n", line);
+				return EXIT_FAILURE;
+			}
 			add_choice_box(&state, &in_box);
+			free(in_box.label);
 		}
+		free(line);
 	}
 	wl_list_init(&state.outputs);
 	wl_list_init(&state.seats);
@@ -862,6 +962,13 @@ int main(int argc, char *argv[]) {
 	// second roundtrip for xdg-output
 	wl_display_roundtrip(state.display);
 
+	if (output_boxes) {
+		struct slurp_output *box_output;
+		wl_list_for_each(box_output, &state.outputs, link) {
+			add_choice_box(&state, &box_output->logical_geometry);
+		}
+	}
+
 	struct slurp_seat *seat;
 	wl_list_for_each(seat, &state.seats, link) {
 		seat->cursor_surface =
@@ -871,6 +978,14 @@ int main(int argc, char *argv[]) {
 	state.running = true;
 	while (state.running && wl_display_dispatch(state.display) != -1) {
 		// This space intentionally left blank
+	}
+
+	if (state.result.width == 0 && state.result.height == 0) {
+		fprintf(stderr, "selection cancelled\n");
+		status = EXIT_FAILURE;
+	} else {
+		print_formatted_result(stream, &state.result, &state.outputs, format);
+		fclose(stream);
 	}
 
 	struct slurp_output *output_tmp;
@@ -898,14 +1013,14 @@ int main(int argc, char *argv[]) {
 	struct slurp_box *box, *box_tmp;
 	wl_list_for_each_safe(box, box_tmp, &state.boxes, link) {
 		wl_list_remove(&box->link);
+		free(box->label);
 		free(box);
 	}
 
-	if (state.result.width == 0 && state.result.height == 0) {
-		fprintf(stderr, "selection cancelled\n");
-		return EXIT_FAILURE;
+	if (result_str) {
+		printf("%s", result_str);
+		free(result_str);
 	}
 
-	print_formatted_result(&state.result, format);
-	return EXIT_SUCCESS;
+	return status;
 }
