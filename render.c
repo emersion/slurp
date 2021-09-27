@@ -48,7 +48,7 @@ void render(struct slurp_output *output) {
 			struct slurp_box *output_box = &output->logical_geometry;
 			if (in_box(output_box, current_selection->x, current_selection->y)) {
 
-				set_source_u32(cairo, state->colors.selection);
+				set_source_u32(cairo, state->colors.border);
 				cairo_rectangle(cairo, output_box->x, current_selection->y, output->logical_geometry.width, 1);
 				cairo_fill(cairo);
 				cairo_rectangle(cairo, current_selection->x, output->logical_geometry.y, 1, output->logical_geometry.height);
