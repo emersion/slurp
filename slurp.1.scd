@@ -73,6 +73,10 @@ held, the selection is moved instead of being resized.
 	Force selections to have the given aspect ratio. This constraint is not
 	applied to the predefined rectangles specified using *-o*.
 
+*-x*
+	Draw fullscreen crosshairs on the display output containing the cursor until
+	a selection is started. This help aligning the origin of the selection.
+
 # COLORS
 
 Colors may be specified in #RRGGBB or #RRGGBBAA format. The # is optional.
