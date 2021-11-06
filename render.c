@@ -77,6 +77,7 @@ void render(struct slurp_output *output) {
 					       CAIRO_FONT_SLANT_NORMAL,
 					       CAIRO_FONT_WEIGHT_NORMAL);
 			cairo_set_font_size(cairo, 14);
+			set_source_u32(cairo, state->colors.border);
 			// buffer of 12 can hold selections up to 99999x99999
 			char dimensions[12];
 			snprintf(dimensions, sizeof(dimensions), "%ix%i",
