@@ -16,6 +16,7 @@
 #define BG_COLOR 0xFFFFFF40
 #define BORDER_COLOR 0x000000FF
 #define SELECTION_COLOR 0x00000000
+#define FONT_FAMILY "sans-serif"
 
 static void noop() {
 	// This space intentionally left blank
@@ -664,6 +665,7 @@ static const char usage[] =
 	"  -c #rrggbbaa Set border color.\n"
 	"  -s #rrggbbaa Set selection color.\n"
 	"  -B #rrggbbaa Set option box color.\n"
+	"  -F s         Set the font family for the dimensions.\n"
 	"  -w n         Set border weight.\n"
 	"  -f s         Set output format.\n"
 	"  -o           Select a display output.\n"
@@ -775,12 +777,13 @@ int main(int argc, char *argv[]) {
 		.border_weight = 2,
 		.display_dimensions = false,
 		.restrict_selection = false,
+		.font_family = FONT_FAMILY
 	};
 
 	int opt;
 	char *format = "%x,%y %wx%h\n";
 	bool output_boxes = false;
-	while ((opt = getopt(argc, argv, "hdb:c:s:B:w:prof:")) != -1) {
+	while ((opt = getopt(argc, argv, "hdb:c:s:B:w:prof:F:")) != -1) {
 		switch (opt) {
 		case 'h':
 			printf("%s", usage);
@@ -802,6 +805,9 @@ int main(int argc, char *argv[]) {
 			break;
 		case 'f':
 			format = optarg;
+			break;
+		case 'F':
+			state.font_family = optarg;
 			break;
 		case 'w': {
 			errno = 0;
