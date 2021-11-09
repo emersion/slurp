@@ -73,7 +73,7 @@ void render(struct slurp_output *output) {
 		cairo_stroke(cairo);
 
 		if (state->display_dimensions) {
-			cairo_select_font_face(cairo, "Sans",
+			cairo_select_font_face(cairo, state->font_family,
 					       CAIRO_FONT_SLANT_NORMAL,
 					       CAIRO_FONT_WEIGHT_NORMAL);
 			cairo_set_font_size(cairo, 14);
