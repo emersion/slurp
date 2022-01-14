@@ -112,6 +112,12 @@ static void handle_active_selection_motion(struct slurp_seat *seat, struct slurp
 		abs(current_selection->x - anchor_x) + 1;
 	current_selection->selection.height =
 		abs(current_selection->y - anchor_y) + 1;
+
+	struct slurp_box logical_geometry = current_selection->current_output->logical_geometry;
+	int32_t selection_x = current_selection->selection.x;
+	int32_t selection_y = current_selection->selection.y;
+	current_selection->selection.output_local_x = selection_x - logical_geometry.x;
+	current_selection->selection.output_local_y = selection_y - logical_geometry.y;
 }
 
 static void pointer_handle_enter(void *data, struct wl_pointer *wl_pointer,
@@ -720,6 +726,12 @@ static void print_formatted_result(FILE *stream, const struct slurp_box *result,
 				continue;
 			case 'y':
 				fprintf(stream, "%d", result->y);
+				continue;
+			case 'X':
+				fprintf(stream, "%d", result->output_local_x);
+				continue;
+			case 'Y':
+				fprintf(stream, "%d", result->output_local_y);
 				continue;
 			case 'w':
 				fprintf(stream, "%d", result->width);

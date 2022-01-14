@@ -13,6 +13,7 @@
 
 struct slurp_box {
 	int32_t x, y;
+	int32_t output_local_x, output_local_y;
 	int32_t width, height;
 	char *label;
 	struct wl_list link;
