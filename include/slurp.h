@@ -48,6 +48,8 @@ struct slurp_state {
 		uint32_t choice;
 	} colors;
 
+	const char *font_family;
+
 	uint32_t border_weight;
 	bool display_dimensions;
 	bool single_point;

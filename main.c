@@ -16,6 +16,7 @@
 #define BG_COLOR 0xFFFFFF40
 #define BORDER_COLOR 0x000000FF
 #define SELECTION_COLOR 0x00000000
+#define FONT_FAMILY "sans-serif"
 
 static void noop() {
 	// This space intentionally left blank
@@ -43,10 +44,6 @@ static int32_t box_size(const struct slurp_box *box) {
 
 static int min(int a, int b) {
 	return (a < b) ? a : b;
-}
-
-static int max(int a, int b) {
-	return (a > b) ? a : b;
 }
 
 static struct slurp_output *output_from_surface(struct slurp_state *state,
@@ -100,6 +97,30 @@ static void seat_set_outputs_dirty(struct slurp_seat *seat) {
 	}
 }
 
+static void handle_active_selection_motion(struct slurp_seat *seat, struct slurp_selection *current_selection) {
+	if(seat->state->restrict_selection){
+		return;
+	}
+
+	int32_t anchor_x = current_selection->anchor_x;
+	int32_t anchor_y = current_selection->anchor_y;
+  int32_t dist_x = current_selection->x - anchor_x;
+	int32_t dist_y = current_selection->y - anchor_y;
+  
+	current_selection->has_selection = true;
+	// selection includes the seat and anchor positions
+  int32_t width = abs(dist_x) + 1;
+	int32_t height = abs(dist_y) + 1;
+ 	if (seat->state->fixed_aspect) {
+		width = min(width, height / seat->state->aspect_ratio);
+		height = min(height, width * seat->state->aspect_ratio);
+	} 
+	current_selection->selection.x = dist_x > 0 ? anchor_x : anchor_x - (width - 1);
+	current_selection->selection.y = dist_y > 0 ? anchor_y : anchor_y - (height - 1);
+	current_selection->selection.width = width;
+	current_selection->selection.height = height;
+}
+
 static void pointer_handle_enter(void *data, struct wl_pointer *wl_pointer,
 		uint32_t serial, struct wl_surface *surface,
 		wl_fixed_t surface_x, wl_fixed_t surface_y) {
@@ -108,11 +129,26 @@ static void pointer_handle_enter(void *data, struct wl_pointer *wl_pointer,
 	if (output == NULL) {
 		return;
 	}
+
+	// the places the cursor moved away from are also dirty
+	if (seat->pointer_selection.has_selection) {
+		seat_set_outputs_dirty(seat);
+	}
+
 	// TODO: handle multiple overlapping outputs
 	seat->pointer_selection.current_output = output;
 
 	move_seat(seat, surface_x, surface_y, &seat->pointer_selection);
-	seat_update_selection(seat);
+
+	switch (seat->button_state) {
+	case WL_POINTER_BUTTON_STATE_RELEASED:
+		seat_update_selection(seat);
+		break;
+	case WL_POINTER_BUTTON_STATE_PRESSED:;
+		handle_active_selection_motion(seat, &seat->pointer_selection);
+		break;
+	}
+
 	seat_set_outputs_dirty(seat);
 
 	wl_surface_set_buffer_scale(seat->cursor_surface, output->scale);
@@ -130,27 +166,6 @@ static void pointer_handle_leave(void *data, struct wl_pointer *wl_pointer,
 
 	// TODO: handle multiple overlapping outputs
 	seat->pointer_selection.current_output = NULL;
-}
-
-static void handle_active_selection_motion(struct slurp_seat *seat,
-		struct slurp_selection *current_selection) {
-	int32_t anchor_x = max(0, current_selection->anchor_x);
-	int32_t anchor_y = max(0, current_selection->anchor_y);
-	int32_t dist_x = current_selection->x - anchor_x;
-	int32_t dist_y = current_selection->y - anchor_y;
-
-	// selection includes the seat and anchor positions
-	int32_t width = abs(dist_x) + 1;
-	int32_t height = abs(dist_y) + 1;
-	if (seat->state->fixed_aspect) {
-		width = min(width, height / seat->state->aspect_ratio);
-		height = min(height, width * seat->state->aspect_ratio);
-	}
-
-	current_selection->selection.x = dist_x > 0 ? anchor_x : anchor_x - (width - 1);
-	current_selection->selection.y = dist_y > 0 ? anchor_y : anchor_y - (height - 1);
-	current_selection->selection.width = width;
-	current_selection->selection.height = height;
 }
 
 static void pointer_handle_motion(void *data, struct wl_pointer *wl_pointer,
@@ -192,7 +207,6 @@ static void handle_selection_start(struct slurp_seat *seat,
 			state->running = false;
 		}
 	} else {
-		current_selection->has_selection = true;
 		current_selection->anchor_x = current_selection->x;
 		current_selection->anchor_y = current_selection->y;
 	}
@@ -535,6 +549,8 @@ static void send_frame(struct slurp_output *output) {
 	if (output->current_buffer == NULL) {
 		return;
 	}
+	cairo_identity_matrix(output->current_buffer->cairo);
+	cairo_scale(output->current_buffer->cairo, output->scale, output->scale);
 
 	render(output);
 
@@ -656,6 +672,7 @@ static const char usage[] =
 	"  -c #rrggbbaa Set border color.\n"
 	"  -s #rrggbbaa Set selection color.\n"
 	"  -B #rrggbbaa Set option box color.\n"
+	"  -F s         Set the font family for the dimensions.\n"
 	"  -w n         Set border weight.\n"
 	"  -f s         Set output format.\n"
 	"  -o           Select a display output.\n"
@@ -769,12 +786,13 @@ int main(int argc, char *argv[]) {
 		.display_dimensions = false,
 		.restrict_selection = false,
 		.fixed_aspect = false,
+		.font_family = FONT_FAMILY
 	};
 
 	int opt;
 	char *format = "%x,%y %wx%h\n";
 	bool output_boxes = false;
-	while ((opt = getopt(argc, argv, "hdb:c:s:B:w:proa:f:")) != -1) {
+	while ((opt = getopt(argc, argv, "hdb:c:s:B:w:proa:f:F:")) != -1) {
 		switch (opt) {
 		case 'h':
 			printf("%s", usage);
@@ -796,6 +814,9 @@ int main(int argc, char *argv[]) {
 			break;
 		case 'f':
 			format = optarg;
+			break;
+		case 'F':
+			state.font_family = optarg;
 			break;
 		case 'w': {
 			errno = 0;

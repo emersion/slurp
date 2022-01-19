@@ -4,11 +4,11 @@ slurp(1)
 
 slurp - select a region in a Wayland compositor
 
-# DESCRIPTION
+# SYNOPSIS
 
 *slurp* [options...]
 
-# SYNOPSIS
+# DESCRIPTION
 
 slurp is a command-line utility to select a region from Wayland compositors
 which support the layer-shell protocol. It lets the user hold the pointer to
@@ -43,6 +43,12 @@ held, the selection is moved instead of being resized.
 *-B* _color_
 	Set color for highlighting predefined rectangles from standard input when not
 	selected.
+
+*-F* _font family_
+	Set the font family name when displaying the dimensions box. Only useful
+	when combined with the -d option. The available font family names guaranteed
+	to work are the standard generic CSS2 options: serif, sans-serif,
+	monospace, cursive and fantasy. It defaults to the sans-serif family name.
 
 *-w* _weight_
 	Set border weight.
