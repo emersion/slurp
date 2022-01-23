@@ -106,15 +106,15 @@ static void handle_active_selection_motion(struct slurp_seat *seat, struct slurp
 	int32_t anchor_y = current_selection->anchor_y;
   int32_t dist_x = current_selection->x - anchor_x;
 	int32_t dist_y = current_selection->y - anchor_y;
-  
+
 	current_selection->has_selection = true;
 	// selection includes the seat and anchor positions
   int32_t width = abs(dist_x) + 1;
 	int32_t height = abs(dist_y) + 1;
- 	if (seat->state->fixed_aspect) {
+ 	if (seat->state->aspect_ratio) {
 		width = min(width, height / seat->state->aspect_ratio);
 		height = min(height, width * seat->state->aspect_ratio);
-	} 
+	}
 	current_selection->selection.x = dist_x > 0 ? anchor_x : anchor_x - (width - 1);
 	current_selection->selection.y = dist_y > 0 ? anchor_y : anchor_y - (height - 1);
 	current_selection->selection.width = width;
@@ -785,13 +785,14 @@ int main(int argc, char *argv[]) {
 		.border_weight = 2,
 		.display_dimensions = false,
 		.restrict_selection = false,
-		.fixed_aspect = false,
+		.aspect_ratio = 0,
 		.font_family = FONT_FAMILY
 	};
 
 	int opt;
 	char *format = "%x,%y %wx%h\n";
 	bool output_boxes = false;
+	unsigned int w, h;
 	while ((opt = getopt(argc, argv, "hdb:c:s:B:w:proa:f:F:")) != -1) {
 		switch (opt) {
 		case 'h':
@@ -838,10 +839,12 @@ int main(int argc, char *argv[]) {
 			state.restrict_selection = true;
 			break;
 		case 'a':
-			state.fixed_aspect = true;
-			int w, h;
-			if (sscanf(optarg, "%d:%d", &w, &h) < 2) {
+			if (sscanf(optarg, "%u:%u", &w, &h) < 2) {
 				fprintf(stderr, "invalid aspect ratio\n");
+				return EXIT_FAILURE;
+			}
+			if (w == 0 || h == 0) {
+				fprintf(stderr, "width and height of aspect ratio cannot be zero\n");
 				return EXIT_FAILURE;
 			}
 			state.aspect_ratio = (double) h / w;
