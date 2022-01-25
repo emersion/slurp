@@ -42,8 +42,8 @@ static int32_t box_size(const struct slurp_box *box) {
 	return box->width * box->height;
 }
 
-static int min(int a, int b) {
-	return (a < b) ? a : b;
+static int max(int a, int b) {
+	return (a > b) ? a : b;
 }
 
 static struct slurp_output *output_from_surface(struct slurp_state *state,
@@ -90,7 +90,7 @@ static void seat_set_outputs_dirty(struct slurp_seat *seat) {
 	wl_list_for_each(output, &seat->state->outputs, link) {
 		if (box_intersect(&output->logical_geometry,
 			&seat->pointer_selection.selection) ||
-		    box_intersect(&output->logical_geometry,
+				box_intersect(&output->logical_geometry,
 			&seat->touch_selection.selection)) {
 			set_output_dirty(output);
 		}
@@ -104,16 +104,16 @@ static void handle_active_selection_motion(struct slurp_seat *seat, struct slurp
 
 	int32_t anchor_x = current_selection->anchor_x;
 	int32_t anchor_y = current_selection->anchor_y;
-  int32_t dist_x = current_selection->x - anchor_x;
+	int32_t dist_x = current_selection->x - anchor_x;
 	int32_t dist_y = current_selection->y - anchor_y;
 
 	current_selection->has_selection = true;
 	// selection includes the seat and anchor positions
-  int32_t width = abs(dist_x) + 1;
+	int32_t width = abs(dist_x) + 1;
 	int32_t height = abs(dist_y) + 1;
- 	if (seat->state->aspect_ratio) {
-		width = min(width, height / seat->state->aspect_ratio);
-		height = min(height, width * seat->state->aspect_ratio);
+	if (seat->state->aspect_ratio) {
+		width = max(width, height / seat->state->aspect_ratio);
+		height = max(height, width * seat->state->aspect_ratio);
 	}
 	current_selection->selection.x = dist_x > 0 ? anchor_x : anchor_x - (width - 1);
 	current_selection->selection.y = dist_y > 0 ? anchor_y : anchor_y - (height - 1);
@@ -277,6 +277,15 @@ static void keyboard_handle_keymap(void *data, struct wl_keyboard *wl_keyboard,
 	seat->xkb_state = xkb_state_new(seat->xkb_keymap);
 }
 
+// Recompute the selection if the aspect ratio changed.
+static void recompute_selection(struct slurp_seat *seat) {
+	struct slurp_selection *current = slurp_seat_current_selection(seat);
+	if (current->has_selection) {
+		handle_active_selection_motion(seat, slurp_seat_current_selection(seat));
+		seat_set_outputs_dirty(seat);
+	}
+}
+
 static void keyboard_handle_key(void *data, struct wl_keyboard *wl_keyboard,
 		const uint32_t serial, const uint32_t time, const uint32_t key,
 		const uint32_t key_state) {
@@ -301,12 +310,22 @@ static void keyboard_handle_key(void *data, struct wl_keyboard *wl_keyboard,
 			}
 			state->edit_anchor = true;
 			break;
+		case XKB_KEY_Shift_L:
+		case XKB_KEY_Shift_R:
+			if (!state->fixed_aspect_ratio) {
+				state->aspect_ratio = 1;
+				recompute_selection(seat);
+			}
+			break;
 		}
 		break;
 
 	case WL_KEYBOARD_KEY_STATE_RELEASED:
 		if (keysym == XKB_KEY_space) {
 			state->edit_anchor = false;
+		} else if (!state->fixed_aspect_ratio && (keysym == XKB_KEY_Shift_L || keysym == XKB_KEY_Shift_R)) {
+			state->aspect_ratio = 0;
+			recompute_selection(seat);
 		}
 		break;
 	}
@@ -785,6 +804,7 @@ int main(int argc, char *argv[]) {
 		.border_weight = 2,
 		.display_dimensions = false,
 		.restrict_selection = false,
+		.fixed_aspect_ratio = false,
 		.aspect_ratio = 0,
 		.font_family = FONT_FAMILY
 	};
@@ -792,7 +812,7 @@ int main(int argc, char *argv[]) {
 	int opt;
 	char *format = "%x,%y %wx%h\n";
 	bool output_boxes = false;
-	unsigned int w, h;
+	int w, h;
 	while ((opt = getopt(argc, argv, "hdb:c:s:B:w:proa:f:F:")) != -1) {
 		switch (opt) {
 		case 'h':
@@ -839,14 +859,15 @@ int main(int argc, char *argv[]) {
 			state.restrict_selection = true;
 			break;
 		case 'a':
-			if (sscanf(optarg, "%u:%u", &w, &h) < 2) {
+			if (sscanf(optarg, "%d:%d", &w, &h) != 2) {
 				fprintf(stderr, "invalid aspect ratio\n");
 				return EXIT_FAILURE;
 			}
-			if (w == 0 || h == 0) {
-				fprintf(stderr, "width and height of aspect ratio cannot be zero\n");
+			if (w <= 0 || h <= 0) {
+				fprintf(stderr, "width and height of aspect ratio must be greater than zero\n");
 				return EXIT_FAILURE;
 			}
+			state.fixed_aspect_ratio = true;
 			state.aspect_ratio = (double) h / w;
 			break;
 		default:

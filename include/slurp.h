@@ -55,6 +55,7 @@ struct slurp_state {
 	bool single_point;
 	bool restrict_selection;
 	struct wl_list boxes; // slurp_box::link
+	bool fixed_aspect_ratio;
 	double aspect_ratio;  // h / w
 
 	struct slurp_box result;
@@ -113,4 +114,10 @@ struct slurp_seat {
 };
 
 bool box_intersect(const struct slurp_box *a, const struct slurp_box *b);
+
+static inline struct slurp_selection *slurp_seat_current_selection(struct slurp_seat *seat) {
+	return seat->touch_selection.has_selection ?
+		&seat->touch_selection :
+		&seat->pointer_selection;
+}
 #endif
