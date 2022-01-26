@@ -49,9 +49,7 @@ void render(struct slurp_output *output) {
 	struct slurp_seat *seat;
 	wl_list_for_each(seat, &state->seats, link) {
 		struct slurp_selection *current_selection =
-			seat->touch_selection.has_selection ?
-				&seat->touch_selection :
-				&seat->pointer_selection;
+			slurp_seat_current_selection(seat);
 
 		if (!current_selection->has_selection) {
 			continue;

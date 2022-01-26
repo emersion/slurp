@@ -69,6 +69,10 @@ held, the selection is moved instead of being resized.
 	from standard input, if *-o* is used, the rectangles of all display outputs.
 	This option conflicts with *-p*.
 
+*-a* _width_:_height_
+	Force selections to have the given aspect ratio. This constraint is not
+	applied to the predefined rectangles specified using *-o*.
+
 # COLORS
 
 Colors may be specified in #RRGGBB or #RRGGBBAA format. The # is optional.
@@ -91,6 +95,22 @@ Interpreted sequences are:
 	not known
 
 The default format is "%x,%y %wx%h\\n".
+
+# KEYBOARD CONTROLS
+
+The following keyboard actions can be used during selection:
+
+*Escape*	Cancel the selection and exit slurp
+
+*Space*	 If currently making a selection, while space is held down, move the
+entire selection rather than change the selection's size as you move the
+pointer.
+
+*Shift*	Experimental. If the *-a* option wasn't specified, then set the aspect
+ratio to 1:1 while shift is held down, releasing it restores the un-constrained
+aspect ratio. *Note:* This behavior may change in the future depending on
+feedback.
+
 
 # AUTHORS
 
