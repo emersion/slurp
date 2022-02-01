@@ -77,11 +77,10 @@ static void seat_set_outputs_dirty(struct slurp_seat *seat) {
 	struct slurp_state *state = seat->state;
 	struct slurp_output *output;
 	wl_list_for_each(output, &seat->state->outputs, link) {
-		if (box_intersect(&output->logical_geometry,
-			&seat->pointer_selection.selection) ||
-				box_intersect(&output->logical_geometry,
-			&seat->touch_selection.selection) ||
-			state->crosshairs) {
+		struct slurp_box *geometry = &output->logical_geometry;
+		if (box_intersect(geometry, &seat->pointer_selection.selection) ||
+				box_intersect(geometry, &seat->touch_selection.selection) ||
+				(state->crosshairs && in_box(geometry, seat->pointer_selection.x, seat->pointer_selection.y))) {
 			set_output_dirty(output);
 		}
 	}
@@ -123,7 +122,7 @@ static void pointer_handle_enter(void *data, struct wl_pointer *wl_pointer,
 	}
 
 	// the places the cursor moved away from are also dirty
-	if (seat->pointer_selection.has_selection) {
+	if (seat->pointer_selection.has_selection || seat->state->crosshairs) {
 		seat_set_outputs_dirty(seat);
 	}
 
