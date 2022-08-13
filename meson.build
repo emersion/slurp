@@ -14,6 +14,7 @@ slurp_inc = include_directories('include')
 cc = meson.get_compiler('c')
 
 cairo = dependency('cairo')
+math = cc.find_library('m')
 realtime = cc.find_library('rt')
 wayland_client = dependency('wayland-client')
 wayland_cursor = dependency('wayland-cursor')
@@ -32,6 +33,7 @@ executable(
 	dependencies: [
 		cairo,
 		client_protos,
+		math,
 		realtime,
 		wayland_client,
 		wayland_cursor,

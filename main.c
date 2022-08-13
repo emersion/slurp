@@ -16,6 +16,8 @@
 #define BG_COLOR 0xFFFFFF40
 #define BORDER_COLOR 0x000000FF
 #define SELECTION_COLOR 0x00000000
+#define LABEL_COLOR 0xFFFFFFFF
+#define LABEL_BG_COLOR 0x000000FF
 #define FONT_FAMILY "sans-serif"
 
 static void noop() {
@@ -691,13 +693,16 @@ static const char usage[] =
 	"  -c #rrggbbaa Set border color.\n"
 	"  -s #rrggbbaa Set selection color.\n"
 	"  -B #rrggbbaa Set option box color.\n"
+	"  -l #rrggbbaa Set label text color.\n"
+	"  -L #rrggbbaa Set label background color.\n"
 	"  -F s         Set the font family for the dimensions.\n"
 	"  -w n         Set border weight.\n"
 	"  -f s         Set output format.\n"
 	"  -o           Select a display output.\n"
 	"  -p           Select a single point.\n"
 	"  -r           Restrict selection to predefined boxes.\n"
-	"  -a w:h       Force aspect ratio.\n";
+	"  -a w:h       Force aspect ratio.\n"
+	"  -P           Position labels on the option boxes.\n";
 
 uint32_t parse_color(const char *color) {
 	if (color[0] == '#') {
@@ -715,6 +720,26 @@ uint32_t parse_color(const char *color) {
 		res = (res << 8) | 0xFF;
 	}
 	return res;
+}
+
+enum slurp_label_anchor parse_label_anchor(const char *anchor) {
+	enum slurp_label_anchor label_anchor = ANCHOR_NONE;
+	if (strstr(anchor, "top") != NULL) {
+		label_anchor |= ANCHOR_TOP;
+	}
+	if (strstr(anchor, "bottom") != NULL) {
+		label_anchor |= ANCHOR_BOTTOM;
+	}
+	if (strstr(anchor, "left") != NULL) {
+		label_anchor |= ANCHOR_LEFT;
+	}
+	if (strstr(anchor, "right") != NULL) {
+		label_anchor |= ANCHOR_RIGHT;
+	}
+	if (strstr(anchor, "center") != NULL) {
+		label_anchor |= ANCHOR_TOP  | ANCHOR_BOTTOM | ANCHOR_LEFT | ANCHOR_RIGHT;
+	}
+	return label_anchor;
 }
 
 static void print_output_name(FILE *stream, const struct slurp_box *result, struct wl_list *outputs) {
@@ -800,20 +825,23 @@ int main(int argc, char *argv[]) {
 			.border = BORDER_COLOR,
 			.selection = SELECTION_COLOR,
 			.choice = BG_COLOR,
+			.label_text = LABEL_COLOR,
+			.label_background = LABEL_BG_COLOR,
 		},
 		.border_weight = 2,
 		.display_dimensions = false,
 		.restrict_selection = false,
 		.fixed_aspect_ratio = false,
 		.aspect_ratio = 0,
-		.font_family = FONT_FAMILY
+		.font_family = FONT_FAMILY,
+		.label_anchor = ANCHOR_NONE
 	};
 
 	int opt;
 	char *format = "%x,%y %wx%h\n";
 	bool output_boxes = false;
 	int w, h;
-	while ((opt = getopt(argc, argv, "hdb:c:s:B:w:proa:f:F:")) != -1) {
+	while ((opt = getopt(argc, argv, "hdb:c:s:B:l:L:w:proa:f:F:P:")) != -1) {
 		switch (opt) {
 		case 'h':
 			printf("%s", usage);
@@ -833,11 +861,20 @@ int main(int argc, char *argv[]) {
 		case 'B':
 			state.colors.choice = parse_color(optarg);
 			break;
+		case 'l':
+			state.colors.label_text = parse_color(optarg);
+			break;
+		case 'L':
+			state.colors.label_background = parse_color(optarg);
+			break;
 		case 'f':
 			format = optarg;
 			break;
 		case 'F':
 			state.font_family = optarg;
+			break;
+		case 'P':
+			state.label_anchor = parse_label_anchor(optarg);
 			break;
 		case 'w': {
 			errno = 0;

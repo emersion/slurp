@@ -11,6 +11,14 @@
 
 #define TOUCH_ID_EMPTY -1
 
+enum slurp_label_anchor {
+	ANCHOR_NONE = 0,
+	ANCHOR_TOP = 1,
+	ANCHOR_BOTTOM = 2,
+	ANCHOR_LEFT = 4,
+	ANCHOR_RIGHT = 8,
+};
+
 struct slurp_box {
 	int32_t x, y;
 	int32_t width, height;
@@ -46,6 +54,8 @@ struct slurp_state {
 		uint32_t border;
 		uint32_t selection;
 		uint32_t choice;
+		uint32_t label_text;
+		uint32_t label_background;
 	} colors;
 
 	const char *font_family;
@@ -57,6 +67,7 @@ struct slurp_state {
 	struct wl_list boxes; // slurp_box::link
 	bool fixed_aspect_ratio;
 	double aspect_ratio;  // h / w
+	enum slurp_label_anchor label_anchor;
 
 	struct slurp_box result;
 };

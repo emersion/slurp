@@ -44,6 +44,12 @@ held, the selection is moved instead of being resized.
 	Set color for highlighting predefined rectangles from standard input when not
 	selected.
 
+*-l* _color_
+	Set text color for labels. See *COLORS* for more detail.
+
+*-L* _color_
+	Set background color for labels. See *COLORS* for more detail.
+
 *-F* _font family_
 	Set the font family name when displaying the dimensions box. Only useful
 	when combined with the -d option. The available font family names guaranteed
@@ -55,6 +61,9 @@ held, the selection is moved instead of being resized.
 
 *-f* _format_
 	Set format. See *FORMAT* for more detail.
+
+*-P* _anchor_
+	Set postion anchor for the labels. See *ANCHOR* for more detail.
 
 *-p*
 	Select a single pixel instead of a rectangle. This mode ignores any
@@ -95,6 +104,15 @@ Interpreted sequences are:
 	not known
 
 The default format is "%x,%y %wx%h\\n".
+
+# ANCHOR
+
+Valid values are:
+
+none, top, bottom, left, right, center
+
+Combinations of these keywords chained together are possible, eg. top-right to
+position the label in the top right corner.
 
 # KEYBOARD CONTROLS
 
