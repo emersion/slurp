@@ -768,6 +768,19 @@ static void print_formatted_result(FILE *stream, const struct slurp_box *result,
 				i--;
 			}
 		}
+		if (c == '\\') {
+			char next = format[i + 1];
+			i++; // Skip the next character
+			switch (next) {
+			case 'n':
+				fprintf(stream, "\n");
+				continue;
+			default:
+				// If no case was executed, revert i back - we don't need to
+				// skip the next character.
+				i--;
+			}
+		}
 		fprintf(stream, "%c", c);
 	}
 }
