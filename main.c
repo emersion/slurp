@@ -1,3 +1,4 @@
+#include "cairo.h"
 #define _POSIX_C_SOURCE 200809L
 
 #include <assert.h>
@@ -493,6 +494,9 @@ static void output_handle_scale(void *data, struct wl_output *wl_output,
 	struct slurp_output *output = data;
 
 	output->scale = scale;
+	if (scale > output->state->max_scale) {
+		output->state->max_scale = scale;
+	}
 }
 
 static const struct wl_output_listener output_listener = {
@@ -544,6 +548,16 @@ static void create_output(struct slurp_state *state,
 	wl_output_add_listener(wl_output, &output_listener, output);
 }
 
+static void destroy_output_background(struct slurp_background *bg) {
+	finish_buffer(&bg->buffer);
+	if (bg->subsurface) {
+		wl_subsurface_destroy(bg->subsurface);
+	}
+	if (bg->surface) {
+		wl_surface_destroy(bg->surface);
+	}
+}
+
 static void destroy_output(struct slurp_output *output) {
 	if (output == NULL) {
 		return;
@@ -552,6 +566,7 @@ static void destroy_output(struct slurp_output *output) {
 	finish_buffer(&output->buffers[0]);
 	finish_buffer(&output->buffers[1]);
 	wl_cursor_theme_destroy(output->cursor_theme);
+	destroy_output_background(&output->background);
 	zwlr_layer_surface_v1_destroy(output->layer_surface);
 	if (output->xdg_output) {
 		zxdg_output_v1_destroy(output->xdg_output);
@@ -673,6 +688,9 @@ static void handle_global(void *data, struct wl_registry *registry,
 	if (strcmp(interface, wl_compositor_interface.name) == 0) {
 		state->compositor = wl_registry_bind(registry, name,
 			&wl_compositor_interface, 4);
+	} else if (strcmp(interface, wl_subcompositor_interface.name) == 0) {
+		state->subcompositor = wl_registry_bind(registry, name,
+				&wl_subcompositor_interface, 1);
 	} else if (strcmp(interface, wl_shm_interface.name) == 0) {
 		state->shm = wl_registry_bind(registry, name,
 			&wl_shm_interface, 1);
@@ -707,6 +725,7 @@ static const char usage[] =
 	"  -c #rrggbbaa Set border color.\n"
 	"  -s #rrggbbaa Set selection color.\n"
 	"  -B #rrggbbaa Set option box color.\n"
+	"  -I IMG       Set background image (png).\n"
 	"  -F s         Set the font family for the dimensions.\n"
 	"  -w n         Set border weight.\n"
 	"  -f s         Set output format.\n"
@@ -885,6 +904,7 @@ int main(int argc, char *argv[]) {
 		.restrict_selection = false,
 		.fixed_aspect_ratio = false,
 		.aspect_ratio = 0,
+		.max_scale = 1,
 		.font_family = FONT_FAMILY
 	};
 
@@ -892,7 +912,7 @@ int main(int argc, char *argv[]) {
 	char *format = "%x,%y %wx%h\n";
 	bool output_boxes = false;
 	int w, h;
-	while ((opt = getopt(argc, argv, "hdb:c:s:B:w:proa:f:F:")) != -1) {
+	while ((opt = getopt(argc, argv, "hdb:c:s:B:w:proa:f:F:I:")) != -1) {
 		switch (opt) {
 		case 'h':
 			printf("%s", usage);
@@ -914,6 +934,13 @@ int main(int argc, char *argv[]) {
 			break;
 		case 'f':
 			format = optarg;
+			break;
+		case 'I':
+			state.background_img = create_background_pattern(optarg);
+			if (!state.background_img) {
+				fprintf(stderr, "Error: Unable to open %s as a PNG.\n", optarg);
+				exit(EXIT_FAILURE);
+			}
 			break;
 		case 'F':
 			state.font_family = optarg;
@@ -1015,6 +1042,11 @@ int main(int argc, char *argv[]) {
 		return EXIT_FAILURE;
 	}
 
+	if (state.background_img && state.subcompositor == NULL) {
+			fprintf(stderr, "compositor doesn't support wl_subcompositor\n");
+			return EXIT_FAILURE;
+	}
+
 	struct slurp_output *output;
 	wl_list_for_each(output, &state.outputs, link) {
 		output->surface = wl_compositor_create_surface(state.compositor);
@@ -1052,6 +1084,10 @@ int main(int argc, char *argv[]) {
 
 	if (!state.cursor_shape_manager && !create_cursors(&state)) {
 		return EXIT_FAILURE;
+	}
+
+	wl_list_for_each(output, &state.outputs, link) {
+		render_background(output);
 	}
 
 	if (output_boxes) {
@@ -1107,6 +1143,10 @@ int main(int argc, char *argv[]) {
 		wl_list_remove(&box->link);
 		free(box->label);
 		free(box);
+	}
+
+	if (state.background_img) {
+		cairo_pattern_destroy(state.background_img);
 	}
 
 	if (result_str) {

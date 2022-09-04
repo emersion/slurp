@@ -86,3 +86,44 @@ void render(struct slurp_output *output) {
 		}
 	}
 }
+
+void render_background(struct slurp_output *output) {
+	struct slurp_state *state = output->state;
+	struct slurp_background *bg = &output->background;
+	bg->surface = wl_compositor_create_surface(state->compositor);
+	bg->subsurface = wl_subcompositor_get_subsurface(state->subcompositor,
+			bg->surface, output->surface);
+	wl_subsurface_place_below(bg->subsurface, output->surface);
+	wl_subsurface_set_position(bg->subsurface, 0, 0);
+
+	int32_t scale = state->max_scale;
+	int32_t width = output->width * scale;
+	int32_t height = output->height * scale;
+
+	struct pool_buffer *buffer = create_buffer(state->shm, &bg->buffer, width, height);
+	if (buffer == NULL) {
+		return;
+	}
+
+	// Actually draw the background onto the surface:
+	// I'm not sure this transformation is correct.
+	cairo_translate(buffer->cairo,
+			-output->logical_geometry.x * scale, -output->logical_geometry.y * scale);
+	cairo_set_source(buffer->cairo, state->background_img);
+	cairo_paint(buffer->cairo);
+
+	wl_surface_attach(bg->surface, buffer->buffer, 0, 0);
+	wl_surface_damage(bg->surface, 0, 0, output->width, output->height);
+	wl_surface_set_buffer_scale(bg->surface, scale);
+	wl_surface_commit(bg->surface);
+}
+
+cairo_pattern_t *create_background_pattern(const char *png_path) {
+	cairo_surface_t *surface = cairo_image_surface_create_from_png(png_path);
+	if (surface == NULL || cairo_surface_status(surface) != CAIRO_STATUS_SUCCESS) {
+		return NULL;
+	}
+	cairo_pattern_t *pattern = cairo_pattern_create_for_surface(surface);
+	cairo_surface_destroy(surface);
+	return pattern;
+}

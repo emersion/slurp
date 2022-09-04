@@ -35,6 +35,7 @@ struct slurp_state {
 	struct wl_registry *registry;
 	struct wl_shm *shm;
 	struct wl_compositor *compositor;
+	struct wl_subcompositor *subcompositor;
 	struct zwlr_layer_shell_v1 *layer_shell;
 	struct zxdg_output_manager_v1 *xdg_output_manager;
 	struct wp_cursor_shape_manager_v1 *cursor_shape_manager;
@@ -50,6 +51,8 @@ struct slurp_state {
 		uint32_t choice;
 	} colors;
 
+	cairo_pattern_t *background_img;
+
 	const char *font_family;
 
 	uint32_t border_weight;
@@ -59,9 +62,17 @@ struct slurp_state {
 	struct wl_list boxes; // slurp_box::link
 	bool fixed_aspect_ratio;
 	double aspect_ratio;  // h / w
+	int32_t max_scale;
 
 	struct slurp_box result;
 };
+
+struct slurp_background {
+	struct wl_surface *surface;
+	struct wl_subsurface *subsurface;
+	struct pool_buffer buffer;
+};
+
 
 struct slurp_output {
 	struct wl_output *wl_output;
@@ -86,6 +97,8 @@ struct slurp_output {
 
 	struct wl_cursor_theme *cursor_theme;
 	struct wl_cursor_image *cursor_image;
+
+	struct slurp_background background;
 };
 
 struct slurp_seat {
