@@ -89,6 +89,18 @@ Interpreted sequences are:
 
 %h	The height of the selection
 
+%X	The x-coordinate of the selection with coordinates relative to the output
+	containing the top left corner.
+
+%Y	The y-coordinate of the selection with coordinates relative to the output
+	containing the top left corner.
+
+%W	The width of the selection cropped to the output containing the top left
+	corner.
+
+%H	The height of the selection cropped to the output containing the top left
+	corner.
+
 %l	Label included with region from stdin
 
 %o	The name of the output containing the top left corner, or "<unknown>" if
