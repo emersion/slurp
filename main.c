@@ -1,5 +1,6 @@
 #define _POSIX_C_SOURCE 200809L
 
+#include <assert.h>
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -44,6 +45,10 @@ static int32_t box_size(const struct slurp_box *box) {
 
 static int max(int a, int b) {
 	return (a > b) ? a : b;
+}
+
+static int min(int a, int b) {
+	return (a < b) ? a : b;
 }
 
 static struct slurp_output *output_from_surface(struct slurp_state *state,
@@ -719,24 +724,32 @@ uint32_t parse_color(const char *color) {
 	return res;
 }
 
-static void print_output_name(FILE *stream, const struct slurp_box *result, struct wl_list *outputs) {
+static struct slurp_output *output_from_box(const struct slurp_box *box, struct wl_list *outputs) {
 	struct slurp_output *output;
 	wl_list_for_each(output, outputs, link) {
-		// For now just use the top-left corner
 		struct slurp_box *geometry = &output->logical_geometry;
-		if (in_box(geometry, result->x, result->y)) {
-			if (geometry->label) {
-				fprintf(stream, "%s", geometry->label);
-				return;
-			}
-			break;
+		// For now just use the top-left corner
+		if (in_box(geometry, box->x, box->y)) {
+			return output;
+		}
+	}
+	return NULL;
+}
+
+static void print_output_name(FILE *stream, const struct slurp_box *result, struct wl_list *outputs) {
+	struct slurp_output *output = output_from_box(result, outputs);
+	if (output) {
+		struct slurp_box *geometry = &output->logical_geometry;
+		if (geometry->label) {
+			fprintf(stream, "%s", geometry->label);
+			return;
 		}
 	}
 	fprintf(stream, "<unknown>");
 }
 
-static void print_formatted_result(FILE *stream, const struct slurp_box *result, struct wl_list *outputs,
-		const char *format) {
+static void print_formatted_result(FILE *stream, struct slurp_state *state , const char *format) {
+	struct slurp_output *output = output_from_box(&state->result, &state->outputs);
 	for (size_t i = 0; format[i] != '\0'; i++) {
 		char c = format[i];
 		if (c == '%') {
@@ -745,24 +758,40 @@ static void print_formatted_result(FILE *stream, const struct slurp_box *result,
 			i++; // Skip the next character (x, y, w or h)
 			switch (next) {
 			case 'x':
-				fprintf(stream, "%d", result->x);
+				fprintf(stream, "%d", state->result.x);
 				continue;
 			case 'y':
-				fprintf(stream, "%d", result->y);
+				fprintf(stream, "%d", state->result.y);
 				continue;
 			case 'w':
-				fprintf(stream, "%d", result->width);
+				fprintf(stream, "%d", state->result.width);
 				continue;
 			case 'h':
-				fprintf(stream, "%d", result->height);
+				fprintf(stream, "%d", state->result.height);
+				continue;
+			case 'X':
+				assert(output);
+				fprintf(stream, "%d", state->result.x - output->logical_geometry.x);
+				continue;
+			case 'Y':
+				assert(output);
+				fprintf(stream, "%d", state->result.y - output->logical_geometry.y);
+				continue;
+			case 'W':
+				assert(output);
+				fprintf(stream, "%d", min(state->result.width, output->logical_geometry.x + output->logical_geometry.width - state->result.x));
+				continue;
+			case 'H':
+				assert(output);
+				fprintf(stream, "%d", min(state->result.height, output->logical_geometry.y + output->logical_geometry.height - state->result.y));
 				continue;
 			case 'l':
-				if (result->label) {
-					fprintf(stream, "%s", result->label);
+				if (state->result.label) {
+					fprintf(stream, "%s", state->result.label);
 				}
 				continue;
 			case 'o':
-				print_output_name(stream, result, outputs);
+				print_output_name(stream, &state->result, &state->outputs);
 				continue;
 			default:
 				// If no case was executed, revert i back - we don't need to
@@ -1027,7 +1056,7 @@ int main(int argc, char *argv[]) {
 		fprintf(stderr, "selection cancelled\n");
 		status = EXIT_FAILURE;
 	} else {
-		print_formatted_result(stream, &state.result, &state.outputs, format);
+		print_formatted_result(stream, &state, format);
 		fclose(stream);
 	}
 
