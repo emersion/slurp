@@ -7,8 +7,6 @@
 #include "render.h"
 #include "slurp.h"
 
-#define CHAR_WIDTH_PX 10.0
-
 static void set_source_u32(cairo_t *cairo, uint32_t color) {
 	cairo_set_source_rgba(cairo, (color >> (3 * 8) & 0xFF) / 255.0,
 		(color >> (2 * 8) & 0xFF) / 255.0,
