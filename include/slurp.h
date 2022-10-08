@@ -46,12 +46,16 @@ struct slurp_state {
 		uint32_t border;
 		uint32_t selection;
 		uint32_t choice;
+		uint32_t font;
+		uint32_t choice_font;
 	} colors;
 
 	const char *font_family;
+	uint32_t font_size;
 
 	uint32_t border_weight;
 	bool display_dimensions;
+	bool display_labels;
 	bool single_point;
 	bool restrict_selection;
 	struct wl_list boxes; // slurp_box::link
@@ -99,6 +103,7 @@ struct slurp_seat {
 
 	struct slurp_selection pointer_selection;
 	struct slurp_selection touch_selection;
+	struct slurp_selection keyboard_selection;
 
 	// pointer:
 	struct wl_pointer *wl_pointer;
@@ -118,6 +123,7 @@ bool box_intersect(const struct slurp_box *a, const struct slurp_box *b);
 static inline struct slurp_selection *slurp_seat_current_selection(struct slurp_seat *seat) {
 	return seat->touch_selection.has_selection ?
 		&seat->touch_selection :
-		&seat->pointer_selection;
+			seat->keyboard_selection.has_selection ?
+				&seat->keyboard_selection : &seat->pointer_selection;
 }
 #endif

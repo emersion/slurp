@@ -31,6 +31,12 @@ held, the selection is moved instead of being resized.
 *-d*
 	Display dimensions of selection.
 
+*-l*
+	Display labels of restricted selections.
+
+*-L* _color_
+	Set font color. See *COLORS* for more detail.
+
 *-b* _color_
 	Set background color. See *COLORS* for more detail.
 
@@ -39,6 +45,9 @@ held, the selection is moved instead of being resized.
 
 *-s* _color_
 	Set selection color. See *COLORS* for more detail.
+
+*-S* _color_
+	Set font color of selected labels. See *COLORS* for more detail.
 
 *-B* _color_
 	Set color for highlighting predefined rectangles from standard input when not
@@ -49,6 +58,9 @@ held, the selection is moved instead of being resized.
 	when combined with the -d option. The available font family names guaranteed
 	to work are the standard generic CSS2 options: serif, sans-serif,
 	monospace, cursive and fantasy. It defaults to the sans-serif family name.
+
+*-g* _font size_
+	Set font size.
 
 *-w* _weight_
 	Set border weight.
@@ -68,6 +80,10 @@ held, the selection is moved instead of being resized.
 	Require the user to select one of the predefined rectangles. These can come
 	from standard input, if *-o* is used, the rectangles of all display outputs.
 	This option conflicts with *-p*.
+
+*-x* _rows_:_columns_
+	Split the predefined box or display into the given amount of rows and columns.
+	This implicitly sets *-r*. Conflicts with *-o*.
 
 *-a* _width_:_height_
 	Force selections to have the given aspect ratio. This constraint is not
