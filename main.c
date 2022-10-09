@@ -18,6 +18,7 @@
 #define BG_COLOR 0xFFFFFF40
 #define BORDER_COLOR 0x000000FF
 #define SELECTION_COLOR 0x00000000
+#define CROSSAIR_COLOR 0x00FFFFFF
 #define FONT_FAMILY "sans-serif"
 #define FONT_SIZE 14
 #define FONT_COLOR 0xFFFFFFFF
@@ -29,24 +30,6 @@ static void noop() {
 }
 
 static void set_output_dirty(struct slurp_output *output);
-
-bool box_intersect(const struct slurp_box *a, const struct slurp_box *b) {
-	return a->x < b->x + b->width &&
-		a->x + a->width > b->x &&
-		a->y < b->y + b->height &&
-		a->height + a->y > b->y;
-}
-
-static bool in_box(const struct slurp_box *box, int32_t x, int32_t y) {
-	return box->x <= x
-		&& box->x + box->width > x
-		&& box->y <= y
-		&& box->y + box->height > y;
-}
-
-static int32_t box_size(const struct slurp_box *box) {
-	return box->width * box->height;
-}
 
 static int max(int a, int b) {
 	return (a > b) ? a : b;
@@ -97,14 +80,17 @@ static void seat_update_selection(struct slurp_seat *seat) {
 }
 
 static void seat_set_outputs_dirty(struct slurp_seat *seat) {
+	struct slurp_state *state = seat->state;
 	struct slurp_output *output;
 	wl_list_for_each(output, &seat->state->outputs, link) {
+		struct slurp_box *geometry = &output->logical_geometry;
 		if (box_intersect(&output->logical_geometry,
 			&seat->pointer_selection.selection) ||
 				box_intersect(&output->logical_geometry,
 			&seat->touch_selection.selection) ||
 				box_intersect(&output->logical_geometry,
-			&seat->keyboard_selection.selection)) {
+			&seat->keyboard_selection.selection) ||
+				(state->crosshair && in_box(geometry, seat->pointer_selection.x, seat->pointer_selection.y))) {
 			set_output_dirty(output);
 		}
 	}
@@ -144,7 +130,7 @@ static void pointer_handle_enter(void *data, struct wl_pointer *wl_pointer,
 	}
 
 	// the places the cursor moved away from are also dirty
-	if (seat->pointer_selection.has_selection || seat->keyboard_selection.has_selection) {
+	if (seat->pointer_selection.has_selection || seat->keyboard_selection.has_selection || seat->state->crosshair) {
 		seat_set_outputs_dirty(seat);
 	}
 
@@ -185,7 +171,7 @@ static void pointer_handle_motion(void *data, struct wl_pointer *wl_pointer,
 		uint32_t time, wl_fixed_t surface_x, wl_fixed_t surface_y) {
 	struct slurp_seat *seat = data;
 	// the places the cursor moved away from are also dirty
-	if (seat->pointer_selection.has_selection) {
+	if (seat->pointer_selection.has_selection || seat->keyboard_selection.has_selection || seat->state->crosshair) {
 		seat_set_outputs_dirty(seat);
 	}
 
@@ -200,7 +186,7 @@ static void pointer_handle_motion(void *data, struct wl_pointer *wl_pointer,
 		break;
 	}
 
-	if (seat->pointer_selection.has_selection) {
+	if (seat->pointer_selection.has_selection || seat->keyboard_selection.has_selection || seat->state->crosshair) {
 		seat_set_outputs_dirty(seat);
 	}
 }
@@ -624,6 +610,7 @@ static void send_frame(struct slurp_output *output) {
 
 	cairo_identity_matrix(output->current_buffer->cairo);
 	cairo_scale(output->current_buffer->cairo, output->scale, output->scale);
+	cairo_translate(output->current_buffer->cairo, -output->logical_geometry.x, -output->logical_geometry.y);
 
 	render(output);
 
@@ -745,6 +732,7 @@ static const char usage[] =
 	"  -L #rrggbbaa Set font color.\n"
 	"  -b #rrggbbaa Set background color.\n"
 	"  -c #rrggbbaa Set border color.\n"
+	"  -X #rrggbbaa Set crosshair color.\n"
 	"  -s #rrggbbaa Set selection color.\n"
 	"  -S #rrggbbaa Set font color of selected labels.\n"
 	"  -B #rrggbbaa Set option box color.\n"
@@ -756,6 +744,7 @@ static const char usage[] =
 	"  -p           Select a single point.\n"
 	"  -r           Restrict selection to predefined boxes.\n"
 	"  -m r:c       Split the predefined box or display into the given amount of rows and columns.\n"
+	"  -x           Enable crosshair.\n"
 	"  -a w:h       Force aspect ratio.\n";
 
 uint32_t parse_color(const char *color) {
@@ -902,6 +891,7 @@ int main(int argc, char *argv[]) {
 			.selection = SELECTION_COLOR,
 			.choice = BG_COLOR,
 			.font = FONT_COLOR,
+			.crosshair = CROSSAIR_COLOR,
 			.choice_font = CHOICE_FONT_COLOR,
 		},
 		.border_weight = 2,
@@ -910,6 +900,7 @@ int main(int argc, char *argv[]) {
 		.restrict_selection = false,
 		.fixed_aspect_ratio = false,
 		.aspect_ratio = 0,
+		.crosshair = false,
 		.font_family = FONT_FAMILY,
 		.font_size = FONT_SIZE
 	};
@@ -919,7 +910,7 @@ int main(int argc, char *argv[]) {
 	bool output_boxes = false;
 	bool split_rows_cols = false;
 	int w, h, r, c;
-	while ((opt = getopt(argc, argv, "hdlb:m:L:S:c:s:B:w:g:proa:f:F:")) != -1) {
+	while ((opt = getopt(argc, argv, "hdlb:X:m:L:S:c:s:B:w:g:prxoa:f:F:")) != -1) {
 		switch (opt) {
 		case 'h':
 			printf("%s", usage);
@@ -932,6 +923,9 @@ int main(int argc, char *argv[]) {
 			break;
 		case 'L':
 			state.colors.font = parse_color(optarg);
+			break;
+		case 'X':
+			state.colors.crosshair = parse_color(optarg);
 			break;
 		case 'S':
 			state.colors.choice_font = parse_color(optarg);
@@ -953,6 +947,9 @@ int main(int argc, char *argv[]) {
 			break;
 		case 'F':
 			state.font_family = optarg;
+			break;
+		case 'x':
+			state.crosshair = true;
 			break;
 		case 'g':
 			errno = 0;

@@ -43,6 +43,9 @@ held, the selection is moved instead of being resized.
 *-c* _color_
 	Set border color. See *COLORS* for more detail.
 
+*-X* _color_
+	Set crosshair color. See *COLORS* for more detail.
+
 *-s* _color_
 	Set selection color. See *COLORS* for more detail.
 
@@ -84,6 +87,9 @@ held, the selection is moved instead of being resized.
 *-m* _rows_:_columns_
 	Split the predefined box or display into the given amount of rows and columns.
 	This implicitly sets *-r*. Conflicts with *-o*.
+
+*-x*
+	Enables the crosshair.
 
 *-a* _width_:_height_
 	Force selections to have the given aspect ratio. This constraint is not
