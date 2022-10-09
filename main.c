@@ -755,7 +755,7 @@ static const char usage[] =
 	"  -o           Select a display output.\n"
 	"  -p           Select a single point.\n"
 	"  -r           Restrict selection to predefined boxes.\n"
-	"  -x r:c       Split the predefined box or display into the given amount of rows and columns.\n"
+	"  -m r:c       Split the predefined box or display into the given amount of rows and columns.\n"
 	"  -a w:h       Force aspect ratio.\n";
 
 uint32_t parse_color(const char *color) {
@@ -919,7 +919,7 @@ int main(int argc, char *argv[]) {
 	bool output_boxes = false;
 	bool split_rows_cols = false;
 	int w, h, r, c;
-	while ((opt = getopt(argc, argv, "hdlb:x:L:S:c:s:B:w:g:proa:f:F:")) != -1) {
+	while ((opt = getopt(argc, argv, "hdlb:m:L:S:c:s:B:w:g:proa:f:F:")) != -1) {
 		switch (opt) {
 		case 'h':
 			printf("%s", usage);
@@ -982,7 +982,7 @@ int main(int argc, char *argv[]) {
 		case 'r':
 			state.restrict_selection = true;
 			break;
-		case 'x':
+		case 'm':
 			if (sscanf(optarg, "%d:%d", &r, &c) != 2) {
 				fprintf(stderr, "invalid format (must be rows:columns)\n");
 				return EXIT_FAILURE;
@@ -1017,7 +1017,7 @@ int main(int argc, char *argv[]) {
 	}
 
 	if (output_boxes && split_rows_cols) {
-		fprintf(stderr, "-x and -o cannot be used together\n");
+		fprintf(stderr, "-m and -o cannot be used together\n");
 		return EXIT_FAILURE;
 	}
 

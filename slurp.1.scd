@@ -81,7 +81,7 @@ held, the selection is moved instead of being resized.
 	from standard input, if *-o* is used, the rectangles of all display outputs.
 	This option conflicts with *-p*.
 
-*-x* _rows_:_columns_
+*-m* _rows_:_columns_
 	Split the predefined box or display into the given amount of rows and columns.
 	This implicitly sets *-r*. Conflicts with *-o*.
 
