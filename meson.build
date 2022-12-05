@@ -3,13 +3,11 @@ project(
 	'c',
 	version: '1.3.2',
 	license: 'MIT',
-	meson_version: '>=0.48.0',
+	meson_version: '>=0.50.0',
 	default_options: ['c_std=c11', 'warning_level=2', 'werror=true'],
 )
 
 add_project_arguments('-Wno-unused-parameter', language: 'c')
-
-slurp_inc = include_directories('include')
 
 cc = meson.get_compiler('c')
 
@@ -37,7 +35,7 @@ executable(
 		wayland_cursor,
 		xkbcommon,
 	],
-	include_directories: [slurp_inc],
+	include_directories: 'include',
 	install: true,
 )
 
