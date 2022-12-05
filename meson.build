@@ -3,7 +3,7 @@ project(
 	'c',
 	version: '1.3.2',
 	license: 'MIT',
-	meson_version: '>=0.50.0',
+	meson_version: '>=0.59.0',
 	default_options: ['c_std=c11', 'warning_level=2', 'werror=true'],
 )
 
@@ -42,11 +42,7 @@ executable(
 scdoc = find_program('scdoc', required: get_option('man-pages'))
 
 if scdoc.found()
-	sh = find_program('sh')
-
 	man_pages = ['slurp.1.scd']
-
-	mandir = get_option('mandir')
 
 	foreach src : man_pages
 		topic = src.split('.')[0]
@@ -57,11 +53,11 @@ if scdoc.found()
 			output,
 			input: src,
 			output: output,
-			command: [
-				sh, '-c', '@0@ < @INPUT@ > @1@'.format(scdoc.path(), output)
-			],
+			command: scdoc,
+			feed: true,
+			capture: true,
 			install: true,
-			install_dir: '@0@/man@1@'.format(mandir, section)
+			install_dir: get_option('mandir') / 'man' + section,
 		)
 	endforeach
 endif
