@@ -26,10 +26,10 @@ executable(
 		'main.c',
 		'pool-buffer.c',
 		'render.c',
+		protos_src,
 	],
 	dependencies: [
 		cairo,
-		client_protos,
 		realtime,
 		wayland_client,
 		wayland_cursor,
