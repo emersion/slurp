@@ -24,11 +24,11 @@ subdir('protocol')
 
 executable(
 	'slurp',
-	files([
+	[
 		'main.c',
 		'pool-buffer.c',
 		'render.c',
-	]),
+	],
 	dependencies: [
 		cairo,
 		client_protos,
