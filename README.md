@@ -3,7 +3,7 @@
 Select a region in a Wayland compositor and print it to the standard output.
 Works well with [grim](https://github.com/emersion/grim).
 
-Join the IRC channel: #emersion on Libera Chat.
+Join the IRC channel: [#emersion on Libera Chat][IRC].
 
 ## Building
 
@@ -51,11 +51,12 @@ swaymsg -t get_tree | jq -r '.. | select(.pid? and .visible?) | .rect | "\(.x),\
 
 ## Contributing
 
-Either [send GitHub pull requests][1] or [send patches on the mailing list][2].
+Either [send GitHub pull requests][GitHub] or [send patches on the mailing list][ML].
 
 ## License
 
 MIT
 
-[1]: https://github.com/emersion/slurp
-[2]: https://lists.sr.ht/%7Eemersion/public-inbox
+[IRC]: https://web.libera.chat/gamja/#emersion
+[GitHub]: https://github.com/emersion/slurp
+[ML]: https://lists.sr.ht/%7Eemersion/public-inbox
