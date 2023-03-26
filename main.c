@@ -342,8 +342,11 @@ static void keyboard_handle_modifiers(void *data, struct wl_keyboard *wl_keyboar
 		const uint32_t mods_latched, const uint32_t mods_locked,
 		const uint32_t group) {
 	struct slurp_seat *seat = data;
-	xkb_state_update_mask(seat->xkb_state, mods_depressed, mods_latched,
-			mods_locked, 0, 0, group);
+	// Avoid segfault if this is called before we initialize the keyboard state
+	if (seat->xkb_state) {
+		xkb_state_update_mask(seat->xkb_state, mods_depressed, mods_latched,
+				mods_locked, 0, 0, group);
+	}
 }
 
 static const struct wl_keyboard_listener keyboard_listener = {
