@@ -296,6 +296,10 @@ static void keyboard_handle_key(void *data, struct wl_keyboard *wl_keyboard,
 		const uint32_t key_state) {
 	struct slurp_seat *seat = data;
 	struct slurp_state *state = seat->state;
+	// ignore any key presses we get before we have initialized the keyboard
+	if (seat->xkb_state == NULL) {
+		return;
+	}
 	const xkb_keysym_t keysym = xkb_state_key_get_one_sym(seat->xkb_state, key + 8);
 
 	switch (key_state) {
