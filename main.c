@@ -1054,8 +1054,12 @@ int main(int argc, char *argv[]) {
 		// This space intentionally left blank
 	}
 
-	if (state.result.width == -1 && state.result.height == -1) {
+	if (state.result.width == 0 && state.result.height == 0) {
 		fprintf(stderr, "selection cancelled\n");
+		status = EXIT_FAILURE;
+	} else if (state.result.width == -1 && state.result.height == -1) {
+		// print a different msg if cancelled by ESC
+		fprintf(stderr, "selection cancelled by ESC\n");
 		status = EXIT_FAILURE;
 	} else {
 		print_formatted_result(stream, &state, format);
