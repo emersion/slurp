@@ -306,8 +306,8 @@ static void keyboard_handle_key(void *data, struct wl_keyboard *wl_keyboard,
 			seat->touch_selection.has_selection = false;
 			state->edit_anchor = false;
 			state->running = false;
-			state->result.x = -1;
-			state->result.y = -1;
+			state->result.width = -1;
+			state->result.height = -1;
 			break;
 
 		case XKB_KEY_space:
