@@ -212,8 +212,8 @@ static void handle_selection_start(struct slurp_seat *seat,
 			state->running = false;
 		}
 	} else {
-		current_selection->anchor_x = current_selection->x;
-		current_selection->anchor_y = current_selection->y;
+		state->result.x = current_selection->anchor_x = current_selection->x;
+		state->result.y = current_selection->anchor_y = current_selection->y;
 	}
 }
 
@@ -306,6 +306,8 @@ static void keyboard_handle_key(void *data, struct wl_keyboard *wl_keyboard,
 			seat->touch_selection.has_selection = false;
 			state->edit_anchor = false;
 			state->running = false;
+			state->result.x = -1;
+			state->result.y = -1;
 			break;
 
 		case XKB_KEY_space:
@@ -1052,7 +1054,7 @@ int main(int argc, char *argv[]) {
 		// This space intentionally left blank
 	}
 
-	if (state.result.width == 0 && state.result.height == 0) {
+	if (state.result.width == -1 && state.result.height == -1) {
 		fprintf(stderr, "selection cancelled\n");
 		status = EXIT_FAILURE;
 	} else {
