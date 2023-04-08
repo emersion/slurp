@@ -302,9 +302,6 @@ static void keyboard_handle_key(void *data, struct wl_keyboard *wl_keyboard,
 	case WL_KEYBOARD_KEY_STATE_PRESSED:
 		switch (keysym) {
 		case XKB_KEY_Escape:
-			// this msg can be used to distinguish 
-			// cancellation by ESC and click.
-			fprintf(stderr, "ESC pressed\n");
 			seat->pointer_selection.has_selection = false;
 			seat->touch_selection.has_selection = false;
 			state->edit_anchor = false;
