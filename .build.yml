@@ -10,7 +10,7 @@ sources:
 tasks:
   - setup: |
       cd slurp
-      meson build
+      meson setup build
   - build: |
       cd slurp
       ninja -C build
