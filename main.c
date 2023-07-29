@@ -818,6 +818,45 @@ static void add_choice_box(struct slurp_state *state,
 	wl_list_insert(state->boxes.prev, &b->link);
 }
 
+static bool create_cursors(struct slurp_state *state) {
+	const char *cursor_theme = getenv("XCURSOR_THEME");
+	const char *cursor_size_str = getenv("XCURSOR_SIZE");
+	int cursor_size = 24;
+	if (cursor_size_str != NULL) {
+		char *end;
+		errno = 0;
+		cursor_size = strtol(cursor_size_str, &end, 10);
+		if (errno != 0 || cursor_size_str[0] == '\0' || end[0] != '\0') {
+			fprintf(stderr, "invalid XCURSOR_SIZE value\n");
+			return false;
+		}
+	}
+
+	struct slurp_output *output;
+	wl_list_for_each(output, &state->outputs, link) {
+		output->cursor_theme = wl_cursor_theme_load(cursor_theme,
+			cursor_size * output->scale, state->shm);
+		if (output->cursor_theme == NULL) {
+			fprintf(stderr, "failed to load cursor theme\n");
+			return false;
+		}
+		struct wl_cursor *cursor =
+			wl_cursor_theme_get_cursor(output->cursor_theme, "crosshair");
+		if (cursor == NULL) {
+			// Fallback
+			cursor =
+				wl_cursor_theme_get_cursor(output->cursor_theme, "left_ptr");
+		}
+		if (cursor == NULL) {
+			fprintf(stderr, "failed to load cursor\n");
+			return false;
+		}
+		output->cursor_image = cursor->images[0];
+	}
+
+	return true;
+}
+
 int main(int argc, char *argv[]) {
 	int status = EXIT_SUCCESS;
 
@@ -967,17 +1006,8 @@ int main(int argc, char *argv[]) {
 		return EXIT_FAILURE;
 	}
 
-	const char *cursor_theme = getenv("XCURSOR_THEME");
-	const char *cursor_size_str = getenv("XCURSOR_SIZE");
-	int cursor_size = 24;
-	if (cursor_size_str != NULL) {
-		char *end;
-		errno = 0;
-		cursor_size = strtol(cursor_size_str, &end, 10);
-		if (errno != 0 || cursor_size_str[0] == '\0' || end[0] != '\0') {
-			fprintf(stderr, "invalid XCURSOR_SIZE value\n");
-			return EXIT_FAILURE;
-		}
+	if (!create_cursors(&state)) {
+		return EXIT_FAILURE;
 	}
 
 	struct slurp_output *output;
@@ -1011,25 +1041,6 @@ int main(int argc, char *argv[]) {
 		zwlr_layer_surface_v1_set_keyboard_interactivity(output->layer_surface, true);
 		zwlr_layer_surface_v1_set_exclusive_zone(output->layer_surface, -1);
 		wl_surface_commit(output->surface);
-
-		output->cursor_theme = wl_cursor_theme_load(cursor_theme,
-			cursor_size * output->scale, state.shm);
-		if (output->cursor_theme == NULL) {
-			fprintf(stderr, "failed to load cursor theme\n");
-			return EXIT_FAILURE;
-		}
-		struct wl_cursor *cursor =
-			wl_cursor_theme_get_cursor(output->cursor_theme, "crosshair");
-		if (cursor == NULL) {
-			// Fallback
-			cursor =
-				wl_cursor_theme_get_cursor(output->cursor_theme, "left_ptr");
-		}
-		if (cursor == NULL) {
-			fprintf(stderr, "failed to load cursor\n");
-			return EXIT_FAILURE;
-		}
-		output->cursor_image = cursor->images[0];
 	}
 	// second roundtrip for xdg-output
 	wl_display_roundtrip(state.display);
