@@ -156,13 +156,22 @@ static void pointer_handle_enter(void *data, struct wl_pointer *wl_pointer,
 
 	seat_set_outputs_dirty(seat);
 
-	wl_surface_set_buffer_scale(seat->cursor_surface, output->scale);
-	wl_surface_attach(seat->cursor_surface,
+	if (output->state->cursor_shape_manager) {
+		struct wp_cursor_shape_device_v1 *device =
+			wp_cursor_shape_manager_v1_get_pointer(
+				output->state->cursor_shape_manager, wl_pointer);
+		wp_cursor_shape_device_v1_set_shape(device, serial,
+			WP_CURSOR_SHAPE_DEVICE_V1_SHAPE_CROSSHAIR);
+		wp_cursor_shape_device_v1_destroy(device);
+	} else {
+		wl_surface_set_buffer_scale(seat->cursor_surface, output->scale);
+		wl_surface_attach(seat->cursor_surface,
 			wl_cursor_image_get_buffer(output->cursor_image), 0, 0);
-	wl_pointer_set_cursor(wl_pointer, serial, seat->cursor_surface,
+		wl_pointer_set_cursor(wl_pointer, serial, seat->cursor_surface,
 			output->cursor_image->hotspot_x / output->scale,
 			output->cursor_image->hotspot_y / output->scale);
-	wl_surface_commit(seat->cursor_surface);
+		wl_surface_commit(seat->cursor_surface);
+	}
 }
 
 static void pointer_handle_leave(void *data, struct wl_pointer *wl_pointer,
@@ -1006,7 +1015,7 @@ int main(int argc, char *argv[]) {
 		return EXIT_FAILURE;
 	}
 
-	if (!create_cursors(&state)) {
+	if (!state.cursor_shape_manager && !create_cursors(&state)) {
 		return EXIT_FAILURE;
 	}
 
