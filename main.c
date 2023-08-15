@@ -176,10 +176,6 @@ static void pointer_handle_leave(void *data, struct wl_pointer *wl_pointer,
 static void pointer_handle_motion(void *data, struct wl_pointer *wl_pointer,
 		uint32_t time, wl_fixed_t surface_x, wl_fixed_t surface_y) {
 	struct slurp_seat *seat = data;
-	// the places the cursor moved away from are also dirty
-	if (seat->pointer_selection.has_selection) {
-		seat_set_outputs_dirty(seat);
-	}
 
 	move_seat(seat, surface_x, surface_y, &seat->pointer_selection);
 
@@ -226,7 +222,9 @@ static void handle_selection_end(struct slurp_seat *seat,
 	if (current_selection->has_selection) {
 		state->result = current_selection->selection;
 	}
-	state->running = false;
+	if (!state->confirm_selection) {
+		state->running = false;
+	}
 }
 
 static void pointer_handle_button(void *data, struct wl_pointer *wl_pointer,
@@ -315,6 +313,7 @@ static void keyboard_handle_key(void *data, struct wl_keyboard *wl_keyboard,
 			}
 			state->edit_anchor = true;
 			break;
+		
 		case XKB_KEY_Shift_L:
 		case XKB_KEY_Shift_R:
 			if (!state->fixed_aspect_ratio) {
@@ -322,17 +321,26 @@ static void keyboard_handle_key(void *data, struct wl_keyboard *wl_keyboard,
 				recompute_selection(seat);
 			}
 			break;
+
+		case XKB_KEY_Return:
+			state->running = false;
+			break;
 		}
 		break;
 
 	case WL_KEYBOARD_KEY_STATE_RELEASED:
-		if (keysym == XKB_KEY_space) {
+		switch (keysym) {
+		case XKB_KEY_space:
 			state->edit_anchor = false;
-		} else if (!state->fixed_aspect_ratio && (keysym == XKB_KEY_Shift_L || keysym == XKB_KEY_Shift_R)) {
-			state->aspect_ratio = 0;
-			recompute_selection(seat);
+			break;
+		case XKB_KEY_Shift_L:
+		case XKB_KEY_Shift_R:
+			if (!state->fixed_aspect_ratio) {
+				state->aspect_ratio = 0;
+				recompute_selection(seat);
+			}
+			break;
 		}
-		break;
 	}
 
 }
@@ -704,6 +712,7 @@ static const char usage[] =
 	"  -o           Select a display output.\n"
 	"  -p           Select a single point.\n"
 	"  -r           Restrict selection to predefined boxes.\n"
+	"  -C           Reselect until enter key is pressed.\n"
 	"  -a w:h       Force aspect ratio.\n";
 
 uint32_t parse_color(const char *color) {
@@ -836,6 +845,7 @@ int main(int argc, char *argv[]) {
 		.display_dimensions = false,
 		.restrict_selection = false,
 		.fixed_aspect_ratio = false,
+		.confirm_selection = false,
 		.aspect_ratio = 0,
 		.font_family = FONT_FAMILY
 	};
@@ -844,7 +854,7 @@ int main(int argc, char *argv[]) {
 	char *format = "%x,%y %wx%h\n";
 	bool output_boxes = false;
 	int w, h;
-	while ((opt = getopt(argc, argv, "hdb:c:s:B:w:proa:f:F:")) != -1) {
+	while ((opt = getopt(argc, argv, "hdb:c:s:B:w:prCoa:f:F:")) != -1) {
 		switch (opt) {
 		case 'h':
 			printf("%s", usage);
@@ -888,6 +898,9 @@ int main(int argc, char *argv[]) {
 			break;
 		case 'r':
 			state.restrict_selection = true;
+			break;
+		case 'C':
+			state.confirm_selection = true;
 			break;
 		case 'a':
 			if (sscanf(optarg, "%d:%d", &w, &h) != 2) {
