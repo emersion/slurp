@@ -925,6 +925,11 @@ int main(int argc, char *argv[]) {
 		return EXIT_FAILURE;
 	}
 
+	if (state.single_point && state.confirm_selection) {
+		fprintf(stderr, "-p and -C cannot be used together\n");
+		return EXIT_FAILURE;
+	}
+
 	wl_list_init(&state.boxes);
 	if (!isatty(STDIN_FILENO) && !state.single_point) {
 		char *line = NULL;
