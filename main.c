@@ -131,6 +131,11 @@ static void handle_active_selection_motion(struct slurp_seat *seat, struct slurp
 	current_selection->selection.y = dist_y > 0 ? anchor_y : anchor_y - (height - 1);
 	current_selection->selection.width = width;
 	current_selection->selection.height = height;
+
+	seat->state->result.x = current_selection->selection.x;
+	seat->state->result.y = current_selection->selection.y;
+	seat->state->result.width = current_selection->selection.width;
+	seat->state->result.height = current_selection->selection.height;
 }
 
 static void handle_alter_selection_motion(struct slurp_seat *seat, struct slurp_selection *current_selection) {
@@ -221,6 +226,11 @@ static void handle_alter_selection_motion(struct slurp_seat *seat, struct slurp_
 		current_selection->selection.width = width;
 		current_selection->selection.height = height;
 	}
+
+	seat->state->result.x = current_selection->selection.x;
+	seat->state->result.y = current_selection->selection.y;
+	seat->state->result.width = current_selection->selection.width;
+	seat->state->result.height = current_selection->selection.height;
 }
 
 static void pointer_handle_enter(void *data, struct wl_pointer *wl_pointer,
@@ -378,9 +388,6 @@ static void handle_selection_end(struct slurp_seat *seat,
 	if (state->single_point || state->restrict_selection) {
 		return;
 	}
-	if (current_selection->has_selection) {
-		state->result = current_selection->selection;
-	}
 
 	if (state->alter_selection) {
 		if (state->alter_state == ALTER_STATE_INITIAL) {
@@ -473,6 +480,8 @@ static void keyboard_handle_key(void *data, struct wl_keyboard *wl_keyboard,
 			seat->touch_selection.has_selection = false;
 			state->edit_anchor = false;
 			state->running = false;
+			state->result.width = 0;
+			state->result.height = 0;
 			break;
 
 		case XKB_KEY_space:
