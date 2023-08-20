@@ -1,4 +1,3 @@
-#include <xkbcommon/xkbcommon-keysyms.h>
 #define _POSIX_C_SOURCE 200809L
 
 #include <assert.h>
@@ -106,6 +105,13 @@ static void seat_set_outputs_dirty(struct slurp_seat *seat) {
 			&seat->touch_selection.selection)) {
 			set_output_dirty(output);
 		}
+	}
+}
+
+static void seat_set_all_outputs_dirty(struct slurp_seat *seat) {
+	struct slurp_output *output;
+	wl_list_for_each(output, &seat->state->outputs, link) {
+		set_output_dirty(output);
 	}
 }
 
@@ -327,7 +333,11 @@ static void pointer_handle_motion(void *data, struct wl_pointer *wl_pointer,
 	}
 
 	if (seat->pointer_selection.has_selection) {
-		seat_set_outputs_dirty(seat);
+		if (seat->state->alter_selection) {
+			seat_set_all_outputs_dirty(seat);
+		} else {
+			seat_set_outputs_dirty(seat);
+		}
 	}
 }
 
