@@ -445,6 +445,8 @@ static void handle_selection_start(struct slurp_seat *seat,
 				state->alter_offset_x = x + width - pointer_x;
 				state->alter_offset_y = y + height / 2 - pointer_y;
 				state->alter_state = ALTER_STATE_RIGHT;
+			} else if (in_box(&current_selection->selection, pointer_x, pointer_y)) {
+				state->edit_anchor = true;
 			} else { // Anywhere else
 				// Reset selection
 				current_selection->anchor_x = pointer_x;
@@ -476,6 +478,8 @@ static void handle_selection_end(struct slurp_seat *seat,
 	if (state->alter_selection) {
 		if (state->alter_state == ALTER_STATE_INITIAL) {
 			seat_set_outputs_dirty(seat);
+		} else if (state->alter_state == ALTER_STATE_NONE) {
+			state->edit_anchor = false;
 		}
 		state->alter_state = ALTER_STATE_NONE;
 	} else {
