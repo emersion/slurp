@@ -1,3 +1,4 @@
+#include <xkbcommon/xkbcommon-keysyms.h>
 #define _POSIX_C_SOURCE 200809L
 
 #include <assert.h>
@@ -186,9 +187,6 @@ static void pointer_handle_motion(void *data, struct wl_pointer *wl_pointer,
 		uint32_t time, wl_fixed_t surface_x, wl_fixed_t surface_y) {
 	struct slurp_seat *seat = data;
 	// the places the cursor moved away from are also dirty
-	if (seat->pointer_selection.has_selection) {
-		seat_set_outputs_dirty(seat);
-	}
 
 	move_seat(seat, surface_x, surface_y, &seat->pointer_selection);
 
@@ -235,7 +233,6 @@ static void handle_selection_end(struct slurp_seat *seat,
 	if (current_selection->has_selection) {
 		state->result = current_selection->selection;
 	}
-	state->running = false;
 }
 
 static void pointer_handle_button(void *data, struct wl_pointer *wl_pointer,
@@ -330,6 +327,9 @@ static void keyboard_handle_key(void *data, struct wl_keyboard *wl_keyboard,
 				state->aspect_ratio = 1;
 				recompute_selection(seat);
 			}
+			break;
+		case XKB_KEY_Return:
+			state->running = false;
 			break;
 		}
 		break;
