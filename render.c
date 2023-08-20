@@ -6,6 +6,9 @@
 #include "render.h"
 #include "slurp.h"
 
+#define SLURP_PI 3.141592653589793238462643383279
+#define GRABBER_RADIUS 10
+
 static void set_source_u32(cairo_t *cairo, uint32_t color) {
 	cairo_set_source_rgba(cairo, (color >> (3 * 8) & 0xFF) / 255.0,
 		(color >> (2 * 8) & 0xFF) / 255.0,
@@ -17,6 +20,42 @@ static void draw_rect(cairo_t *cairo, struct slurp_box *box, uint32_t color) {
 	set_source_u32(cairo, color);
 	cairo_rectangle(cairo, box->x, box->y,
 			box->width, box->height);
+}
+
+static void draw_grabbers(cairo_t* cairo, struct slurp_box *box, uint32_t fill_color, uint32_t border_color) {
+	set_source_u32(cairo, fill_color);
+
+	// Top Left
+	cairo_arc(cairo, box->x, box->y, GRABBER_RADIUS, 0.0, 2*SLURP_PI);
+
+	// Top Right
+	cairo_arc(cairo, box->x + box->width, box->y, GRABBER_RADIUS, 0.0, 2*SLURP_PI);
+	cairo_fill(cairo);
+
+	// Bottom Left
+	cairo_arc(cairo, box->x, box->y + box->height, GRABBER_RADIUS, 0.0, 2*SLURP_PI);
+
+	// Bottom Right
+	cairo_arc(cairo, box->x + box->width, box->y + box->height, GRABBER_RADIUS, 0.0, 2*SLURP_PI);
+	cairo_fill(cairo);
+
+	set_source_u32(cairo, border_color);
+
+	// Top Left
+	cairo_arc(cairo, box->x, box->y, GRABBER_RADIUS, 0.0, 2*SLURP_PI);
+	cairo_stroke(cairo);
+
+	// Top Right
+	cairo_arc(cairo, box->x + box->width, box->y, GRABBER_RADIUS, 0.0, 2*SLURP_PI);
+	cairo_stroke(cairo);
+
+	// Bottom Left
+	cairo_arc(cairo, box->x, box->y + box->height, GRABBER_RADIUS, 0.0, 2*SLURP_PI);
+	cairo_stroke(cairo);
+
+	// Bottom Right
+	cairo_arc(cairo, box->x + box->width, box->y + box->height, GRABBER_RADIUS, 0.0, 2*SLURP_PI);
+	cairo_stroke(cairo);
 }
 
 static void box_layout_to_output(struct slurp_box *box, struct slurp_output *output) {
@@ -69,6 +108,11 @@ void render(struct slurp_output *output) {
 		cairo_set_line_width(cairo, state->border_weight);
 		draw_rect(cairo, &b, state->colors.border);
 		cairo_stroke(cairo);
+
+		// Draw grabbers in the corners
+		// TODO: make color configurable
+		// TODO: make grabbers exist or not
+		draw_grabbers(cairo, &b, 0x00FF00AA, 0xFF0000FF);
 
 		if (state->display_dimensions) {
 			cairo_select_font_face(cairo, state->font_family,
