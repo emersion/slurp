@@ -25,35 +25,65 @@ static void draw_grabbers(cairo_t* cairo, struct slurp_box *box, uint32_t radius
 	set_source_u32(cairo, fill_color);
 
 	// Top Left
-	cairo_arc(cairo, box->x, box->y, radius, 0.0, 2*SLURP_PI);
+	cairo_arc(cairo, box->x, box->y, radius, 0.0, 2.0*SLURP_PI);
 
 	// Top Right
-	cairo_arc(cairo, box->x + box->width, box->y, radius, 0.0, 2*SLURP_PI);
+	cairo_arc(cairo, box->x + box->width, box->y, radius, 0.0, 2.0*SLURP_PI);
 	cairo_fill(cairo);
 
 	// Bottom Left
-	cairo_arc(cairo, box->x, box->y + box->height, radius, 0.0, 2*SLURP_PI);
+	cairo_arc(cairo, box->x, box->y + box->height, radius, 0.0, 2.0*SLURP_PI);
 
 	// Bottom Right
-	cairo_arc(cairo, box->x + box->width, box->y + box->height, radius, 0.0, 2*SLURP_PI);
+	cairo_arc(cairo, box->x + box->width, box->y + box->height, radius, 0.0, 2.0*SLURP_PI);
+	cairo_fill(cairo);
+
+	// Top
+	cairo_arc(cairo, box->x + box->width / 2, box->y, radius, 0.0, 2.0*SLURP_PI);
+
+	// Bottom
+	cairo_arc(cairo, box->x + box->width / 2, box->y + box->height, radius, 0.0, 2.0*SLURP_PI);
+	cairo_fill(cairo);
+
+	// Left
+	cairo_arc(cairo, box->x, box->y + box->height / 2, radius, 0.0, 2.0*SLURP_PI);
+
+	// Right
+	cairo_arc(cairo, box->x + box->width, box->y + box->height / 2, radius, 0.0, 2.0*SLURP_PI);
 	cairo_fill(cairo);
 
 	set_source_u32(cairo, border_color);
 
 	// Top Left
-	cairo_arc(cairo, box->x, box->y, radius, 0.0, 2*SLURP_PI);
+	cairo_arc(cairo, box->x, box->y, radius, 0.0, 2.0*SLURP_PI);
 	cairo_stroke(cairo);
 
 	// Top Right
-	cairo_arc(cairo, box->x + box->width, box->y, radius, 0.0, 2*SLURP_PI);
+	cairo_arc(cairo, box->x + box->width, box->y, radius, 0.0, 2.0*SLURP_PI);
 	cairo_stroke(cairo);
 
 	// Bottom Left
-	cairo_arc(cairo, box->x, box->y + box->height, radius, 0.0, 2*SLURP_PI);
+	cairo_arc(cairo, box->x, box->y + box->height, radius, 0.0, 2.0*SLURP_PI);
 	cairo_stroke(cairo);
 
 	// Bottom Right
-	cairo_arc(cairo, box->x + box->width, box->y + box->height, radius, 0.0, 2*SLURP_PI);
+	cairo_arc(cairo, box->x + box->width, box->y + box->height, radius, 0.0, 2.0*SLURP_PI);
+	cairo_stroke(cairo);
+
+	// Top
+	cairo_arc(cairo, box->x + box->width / 2, box->y, radius, 0.0, 2.0*SLURP_PI);
+	cairo_stroke(cairo);
+
+	// Bottom
+	cairo_arc(cairo, box->x + box->width / 2, box->y + box->height, radius, 0.0, 2.0*SLURP_PI);
+	cairo_stroke(cairo);
+
+	// Left
+	cairo_arc(cairo, box->x, box->y + box->height / 2, radius, 0.0, 2.0*SLURP_PI);
+	cairo_stroke(cairo);
+
+	// Right
+	cairo_arc(cairo, box->x + box->width, box->y + box->height / 2, radius, 0.0, 2.0*SLURP_PI);
 	cairo_stroke(cairo);
 }
 
