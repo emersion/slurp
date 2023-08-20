@@ -139,6 +139,12 @@ static void handle_active_selection_motion(struct slurp_seat *seat, struct slurp
 }
 
 static void handle_alter_selection_motion(struct slurp_seat *seat, struct slurp_selection *current_selection) {
+	if (seat->state->edit_anchor) {
+		current_selection->selection.x = current_selection->anchor_x;
+		current_selection->selection.y = current_selection->anchor_y;
+		return;
+	}
+
 	const int32_t ptr_off_x = current_selection->x + seat->state->alter_offset_x;
 	const int32_t ptr_off_y = current_selection->y + seat->state->alter_offset_y;
 
@@ -226,6 +232,9 @@ static void handle_alter_selection_motion(struct slurp_seat *seat, struct slurp_
 		current_selection->selection.width = width;
 		current_selection->selection.height = height;
 	}
+
+	current_selection->anchor_x = current_selection->selection.x;
+	current_selection->anchor_y = current_selection->selection.y;
 
 	seat->state->result.x = current_selection->selection.x;
 	seat->state->result.y = current_selection->selection.y;
