@@ -7,7 +7,6 @@
 #include "slurp.h"
 
 #define SLURP_PI 3.141592653589793238462643383279
-#define GRABBER_RADIUS 10
 
 static void set_source_u32(cairo_t *cairo, uint32_t color) {
 	cairo_set_source_rgba(cairo, (color >> (3 * 8) & 0xFF) / 255.0,
@@ -109,10 +108,11 @@ void render(struct slurp_output *output) {
 		draw_rect(cairo, &b, state->colors.border);
 		cairo_stroke(cairo);
 
-		// Draw grabbers in the corners
-		// TODO: make color configurable
-		// TODO: make grabbers exist or not
-		draw_grabbers(cairo, &b, 0x00FF00AA, 0xFF0000FF);
+		if (state->alter_selection) {
+			// Draw grabbers in the corners
+			// TODO: make color configurable
+			draw_grabbers(cairo, &b, 0x00FF00AA, 0xFF0000FF);
+		}
 
 		if (state->display_dimensions) {
 			cairo_select_font_face(cairo, state->font_family,

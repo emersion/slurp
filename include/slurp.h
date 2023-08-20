@@ -11,12 +11,22 @@
 #include "xdg-output-unstable-v1-client-protocol.h"
 
 #define TOUCH_ID_EMPTY -1
+#define GRABBER_RADIUS 10
 
 struct slurp_box {
 	int32_t x, y;
 	int32_t width, height;
 	char *label;
 	struct wl_list link;
+};
+
+enum ALTER_STATE {
+	ALTER_STATE_NONE,
+	ALTER_STATE_INITIAL,
+	ALTER_STATE_TOP_LEFT,
+	ALTER_STATE_TOP_RIGHT,
+	ALTER_STATE_BOTTOM_LEFT,
+	ALTER_STATE_BOTTOM_RIGHT,
 };
 
 struct slurp_selection {
@@ -59,6 +69,9 @@ struct slurp_state {
 	struct wl_list boxes; // slurp_box::link
 	bool fixed_aspect_ratio;
 	double aspect_ratio;  // h / w
+	bool alter_selection;
+
+	int alter_state;
 
 	struct slurp_box result;
 };
@@ -116,6 +129,7 @@ struct slurp_seat {
 };
 
 bool box_intersect(const struct slurp_box *a, const struct slurp_box *b);
+bool circle_intersect(int32_t circle_x, int32_t circle_y, int32_t circle_radius, int32_t x, int32_t y);
 
 static inline struct slurp_selection *slurp_seat_current_selection(struct slurp_seat *seat) {
 	return seat->touch_selection.has_selection ?

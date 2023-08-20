@@ -33,6 +33,10 @@ bool box_intersect(const struct slurp_box *a, const struct slurp_box *b) {
 		a->height + a->y > b->y;
 }
 
+bool circle_intersect(int32_t circle_x, int32_t circle_y, int32_t circle_radius, int32_t x, int32_t y) {
+	return abs(circle_x - x) < circle_radius && abs(circle_y - y) < circle_radius;
+}
+
 static bool in_box(const struct slurp_box *box, int32_t x, int32_t y) {
 	return box->x <= x
 		&& box->x + box->width > x
@@ -127,6 +131,71 @@ static void handle_active_selection_motion(struct slurp_seat *seat, struct slurp
 	current_selection->selection.height = height;
 }
 
+static void handle_alter_selection_motion(struct slurp_seat *seat, struct slurp_selection *current_selection) {
+	switch (seat->state->alter_state) {
+		case ALTER_STATE_INITIAL:
+			handle_active_selection_motion(seat, current_selection);
+			break;
+		case ALTER_STATE_TOP_LEFT:
+			current_selection->selection.width += current_selection->selection.x - current_selection->x;
+			current_selection->selection.height += current_selection->selection.y - current_selection->y;
+			current_selection->selection.x = current_selection->x;
+			current_selection->selection.y = current_selection->y;
+			break;
+		case ALTER_STATE_TOP_RIGHT:
+			current_selection->selection.width = current_selection->x - current_selection->selection.x;
+			current_selection->selection.height += current_selection->selection.y - current_selection->y;
+			current_selection->selection.y = current_selection->y;
+			break;
+		case ALTER_STATE_BOTTOM_LEFT:
+			current_selection->selection.width += current_selection->selection.x - current_selection->x;
+			current_selection->selection.x = current_selection->x;
+			current_selection->selection.height = current_selection->y - current_selection->selection.y;
+			break;
+		case ALTER_STATE_BOTTOM_RIGHT:
+			current_selection->selection.width = current_selection->x - current_selection->selection.x;
+			current_selection->selection.height = current_selection->y - current_selection->selection.y;
+			break;
+	}
+
+	if (current_selection->selection.width < 0) {
+		current_selection->selection.x += current_selection->selection.width;
+		current_selection->selection.width = -current_selection->selection.width;
+		switch (seat->state->alter_state) {
+			case ALTER_STATE_TOP_LEFT:
+				seat->state->alter_state = ALTER_STATE_TOP_RIGHT;
+				break;
+			case ALTER_STATE_TOP_RIGHT:
+				seat->state->alter_state = ALTER_STATE_TOP_LEFT;
+				break;
+			case ALTER_STATE_BOTTOM_LEFT:
+				seat->state->alter_state = ALTER_STATE_BOTTOM_RIGHT;
+				break;
+			case ALTER_STATE_BOTTOM_RIGHT:
+				seat->state->alter_state = ALTER_STATE_BOTTOM_LEFT;
+				break;
+		}
+	}
+	if (current_selection->selection.height < 0) {
+		current_selection->selection.y += current_selection->selection.height;
+		current_selection->selection.height = -current_selection->selection.height;
+		switch (seat->state->alter_state) {
+			case ALTER_STATE_TOP_LEFT:
+				seat->state->alter_state = ALTER_STATE_BOTTOM_LEFT;
+				break;
+			case ALTER_STATE_TOP_RIGHT:
+				seat->state->alter_state = ALTER_STATE_BOTTOM_RIGHT;
+				break;
+			case ALTER_STATE_BOTTOM_LEFT:
+				seat->state->alter_state = ALTER_STATE_TOP_LEFT;
+				break;
+			case ALTER_STATE_BOTTOM_RIGHT:
+				seat->state->alter_state = ALTER_STATE_TOP_RIGHT;
+				break;
+		}
+	}
+}
+
 static void pointer_handle_enter(void *data, struct wl_pointer *wl_pointer,
 		uint32_t serial, struct wl_surface *surface,
 		wl_fixed_t surface_x, wl_fixed_t surface_y) {
@@ -148,10 +217,16 @@ static void pointer_handle_enter(void *data, struct wl_pointer *wl_pointer,
 
 	switch (seat->button_state) {
 	case WL_POINTER_BUTTON_STATE_RELEASED:
-		seat_update_selection(seat);
+		if (!seat->state->alter_selection) {
+			seat_update_selection(seat);
+		}
 		break;
 	case WL_POINTER_BUTTON_STATE_PRESSED:;
-		handle_active_selection_motion(seat, &seat->pointer_selection);
+		if (seat->state->alter_selection) {
+			handle_alter_selection_motion(seat, &seat->pointer_selection);
+		} else {
+			handle_active_selection_motion(seat, &seat->pointer_selection);
+		}
 		break;
 	}
 
@@ -192,10 +267,16 @@ static void pointer_handle_motion(void *data, struct wl_pointer *wl_pointer,
 
 	switch (seat->button_state) {
 	case WL_POINTER_BUTTON_STATE_RELEASED:
-		seat_update_selection(seat);
+		if (!seat->state->alter_selection) {
+			seat_update_selection(seat);
+		}
 		break;
 	case WL_POINTER_BUTTON_STATE_PRESSED:;
-		handle_active_selection_motion(seat, &seat->pointer_selection);
+		if (seat->state->alter_selection) {
+			handle_alter_selection_motion(seat, &seat->pointer_selection);
+		} else {
+			handle_active_selection_motion(seat, &seat->pointer_selection);
+		}
 		break;
 	}
 
@@ -218,6 +299,38 @@ static void handle_selection_start(struct slurp_seat *seat,
 			state->result = current_selection->selection;
 			state->running = false;
 		}
+	} else if (state->alter_selection) {
+		if (current_selection->has_selection) {
+			const int32_t pointer_x = current_selection->x;
+			const int32_t pointer_y = current_selection->y;
+			const int32_t x = current_selection->selection.x;
+			const int32_t y = current_selection->selection.y;
+			const int32_t width = current_selection->selection.width;
+			const int32_t height = current_selection->selection.height;
+
+			if (circle_intersect(x, y, GRABBER_RADIUS, pointer_x, pointer_y)) { // Top Left
+				state->alter_state = ALTER_STATE_TOP_LEFT;
+			} else if (circle_intersect(x + width, y, GRABBER_RADIUS, pointer_x, pointer_y)) { // Top Right
+				state->alter_state = ALTER_STATE_TOP_RIGHT;
+			} else if (circle_intersect(x, y + height, GRABBER_RADIUS, pointer_x, pointer_y)) { // Bottom Left
+				state->alter_state = ALTER_STATE_BOTTOM_LEFT;
+			} else if (circle_intersect(x + width, y + height, GRABBER_RADIUS, pointer_x, pointer_y)) { // Bottom Right
+				state->alter_state = ALTER_STATE_BOTTOM_RIGHT;
+			} else { // Anywhere else
+				// Reset selection
+				current_selection->anchor_x = pointer_x;
+				current_selection->anchor_y = pointer_y;
+				state->alter_state = ALTER_STATE_INITIAL;
+			}
+		} else {
+			switch (state->alter_state) {
+				case ALTER_STATE_NONE:
+					current_selection->anchor_x = current_selection->x;
+					current_selection->anchor_y = current_selection->y;
+					state->alter_state = ALTER_STATE_INITIAL;
+					break;
+			}
+		}
 	} else {
 		current_selection->anchor_x = current_selection->x;
 		current_selection->anchor_y = current_selection->y;
@@ -232,6 +345,12 @@ static void handle_selection_end(struct slurp_seat *seat,
 	}
 	if (current_selection->has_selection) {
 		state->result = current_selection->selection;
+	}
+
+	if (state->alter_selection) {
+		state->alter_state = ALTER_STATE_NONE;
+	} else {
+		state->running = false;
 	}
 }
 
@@ -292,7 +411,11 @@ static void keyboard_handle_keymap(void *data, struct wl_keyboard *wl_keyboard,
 static void recompute_selection(struct slurp_seat *seat) {
 	struct slurp_selection *current = slurp_seat_current_selection(seat);
 	if (current->has_selection) {
-		handle_active_selection_motion(seat, slurp_seat_current_selection(seat));
+		if (seat->state->alter_selection) {
+			handle_alter_selection_motion(seat, slurp_seat_current_selection(seat));
+		} else {
+			handle_active_selection_motion(seat, slurp_seat_current_selection(seat));
+		}
 		seat_set_outputs_dirty(seat);
 	}
 }
@@ -398,7 +521,11 @@ static void touch_handle_motion(void *data, struct wl_touch *touch,
 	struct slurp_seat *seat = data;
 	if (seat->touch_id == id) {
 		move_seat(seat, x, y, &seat->touch_selection);
-		handle_active_selection_motion(seat, &seat->touch_selection);
+		if (seat->state->alter_selection) {
+			handle_alter_selection_motion(seat, &seat->touch_selection);
+		} else {
+			handle_active_selection_motion(seat, &seat->touch_selection);
+		}
 		seat_set_outputs_dirty(seat);
 	}
 }
@@ -885,7 +1012,8 @@ int main(int argc, char *argv[]) {
 		.restrict_selection = false,
 		.fixed_aspect_ratio = false,
 		.aspect_ratio = 0,
-		.font_family = FONT_FAMILY
+		.font_family = FONT_FAMILY,
+		.alter_state = ALTER_STATE_NONE
 	};
 
 	int opt;
@@ -954,6 +1082,9 @@ int main(int argc, char *argv[]) {
 			return EXIT_FAILURE;
 		}
 	}
+
+	// TODO: create argument
+	state.alter_selection = true;
 
 	if (state.single_point && state.restrict_selection) {
 		fprintf(stderr, "-p and -r cannot be used together\n");
