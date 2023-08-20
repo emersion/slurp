@@ -138,7 +138,7 @@ static void handle_alter_selection_motion(struct slurp_seat *seat, struct slurp_
 	switch (seat->state->alter_state) {
 		case ALTER_STATE_INITIAL:
 			handle_active_selection_motion(seat, current_selection);
-			break;
+			return;
 		case ALTER_STATE_TOP_LEFT:
 			current_selection->selection.width += current_selection->selection.x - ptr_off_x;
 			current_selection->selection.height += current_selection->selection.y - ptr_off_y;
@@ -196,6 +196,28 @@ static void handle_alter_selection_motion(struct slurp_seat *seat, struct slurp_
 				seat->state->alter_state = ALTER_STATE_TOP_RIGHT;
 				break;
 		}
+	}
+
+	// Handle Aspect Ratio
+	if (seat->state->fixed_aspect_ratio) {
+		const int32_t width = max(current_selection->selection.width, current_selection->selection.height / seat->state->aspect_ratio);
+		const int32_t height = max(current_selection->selection.height, current_selection->selection.width * seat->state->aspect_ratio);
+
+		switch (seat->state->alter_state) {
+		case ALTER_STATE_TOP_LEFT:
+			current_selection->selection.x -= width - current_selection->selection.width;
+			current_selection->selection.y -= height - current_selection->selection.height;
+			break;
+		case ALTER_STATE_TOP_RIGHT:
+			current_selection->selection.y -= height - current_selection->selection.height;
+			break;
+		case ALTER_STATE_BOTTOM_LEFT:
+			current_selection->selection.x -= width - current_selection->selection.width;
+			break;
+		}
+
+		current_selection->selection.width = width;
+		current_selection->selection.height = height;
 	}
 }
 
