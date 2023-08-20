@@ -21,39 +21,39 @@ static void draw_rect(cairo_t *cairo, struct slurp_box *box, uint32_t color) {
 			box->width, box->height);
 }
 
-static void draw_grabbers(cairo_t* cairo, struct slurp_box *box, uint32_t fill_color, uint32_t border_color) {
+static void draw_grabbers(cairo_t* cairo, struct slurp_box *box, uint32_t radius, uint32_t fill_color, uint32_t border_color) {
 	set_source_u32(cairo, fill_color);
 
 	// Top Left
-	cairo_arc(cairo, box->x, box->y, GRABBER_RADIUS, 0.0, 2*SLURP_PI);
+	cairo_arc(cairo, box->x, box->y, radius, 0.0, 2*SLURP_PI);
 
 	// Top Right
-	cairo_arc(cairo, box->x + box->width, box->y, GRABBER_RADIUS, 0.0, 2*SLURP_PI);
+	cairo_arc(cairo, box->x + box->width, box->y, radius, 0.0, 2*SLURP_PI);
 	cairo_fill(cairo);
 
 	// Bottom Left
-	cairo_arc(cairo, box->x, box->y + box->height, GRABBER_RADIUS, 0.0, 2*SLURP_PI);
+	cairo_arc(cairo, box->x, box->y + box->height, radius, 0.0, 2*SLURP_PI);
 
 	// Bottom Right
-	cairo_arc(cairo, box->x + box->width, box->y + box->height, GRABBER_RADIUS, 0.0, 2*SLURP_PI);
+	cairo_arc(cairo, box->x + box->width, box->y + box->height, radius, 0.0, 2*SLURP_PI);
 	cairo_fill(cairo);
 
 	set_source_u32(cairo, border_color);
 
 	// Top Left
-	cairo_arc(cairo, box->x, box->y, GRABBER_RADIUS, 0.0, 2*SLURP_PI);
+	cairo_arc(cairo, box->x, box->y, radius, 0.0, 2*SLURP_PI);
 	cairo_stroke(cairo);
 
 	// Top Right
-	cairo_arc(cairo, box->x + box->width, box->y, GRABBER_RADIUS, 0.0, 2*SLURP_PI);
+	cairo_arc(cairo, box->x + box->width, box->y, radius, 0.0, 2*SLURP_PI);
 	cairo_stroke(cairo);
 
 	// Bottom Left
-	cairo_arc(cairo, box->x, box->y + box->height, GRABBER_RADIUS, 0.0, 2*SLURP_PI);
+	cairo_arc(cairo, box->x, box->y + box->height, radius, 0.0, 2*SLURP_PI);
 	cairo_stroke(cairo);
 
 	// Bottom Right
-	cairo_arc(cairo, box->x + box->width, box->y + box->height, GRABBER_RADIUS, 0.0, 2*SLURP_PI);
+	cairo_arc(cairo, box->x + box->width, box->y + box->height, radius, 0.0, 2*SLURP_PI);
 	cairo_stroke(cairo);
 }
 
@@ -111,8 +111,13 @@ void render(struct slurp_output *output) {
 		if (state->alter_selection) {
 			if (state->alter_state != ALTER_STATE_INITIAL) {
 				// Draw grabbers in the corners
-				// TODO: make color configurable
-				draw_grabbers(cairo, &b, 0x00FF00AA, 0xFF0000FF);
+				draw_grabbers(
+					cairo,
+					&b,
+					state->grabber_radius,
+					state->colors.grabber,
+					state->colors.grabber_border
+				);
 			}
 		}
 

@@ -11,7 +11,6 @@
 #include "xdg-output-unstable-v1-client-protocol.h"
 
 #define TOUCH_ID_EMPTY -1
-#define GRABBER_RADIUS 10
 
 struct slurp_box {
 	int32_t x, y;
@@ -58,6 +57,8 @@ struct slurp_state {
 		uint32_t border;
 		uint32_t selection;
 		uint32_t choice;
+		uint32_t grabber;
+		uint32_t grabber_border;
 	} colors;
 
 	const char *font_family;
@@ -70,6 +71,7 @@ struct slurp_state {
 	bool fixed_aspect_ratio;
 	double aspect_ratio;  // h / w
 	bool alter_selection;
+	uint32_t grabber_radius;
 
 	int alter_state;
 	int32_t alter_offset_x;

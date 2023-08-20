@@ -18,6 +18,8 @@
 #define BG_COLOR 0xFFFFFF40
 #define BORDER_COLOR 0x000000FF
 #define SELECTION_COLOR 0x00000000
+#define GRABBER_COLOR 0x00000000
+#define GRABBER_BORDER_COLOR 0x000000FF
 #define FONT_FAMILY "sans-serif"
 
 static void noop() {
@@ -333,19 +335,19 @@ static void handle_selection_start(struct slurp_seat *seat,
 			const int32_t width = current_selection->selection.width;
 			const int32_t height = current_selection->selection.height;
 
-			if (circle_intersect(x, y, GRABBER_RADIUS, pointer_x, pointer_y)) { // Top Left
+			if (circle_intersect(x, y, state->grabber_radius, pointer_x, pointer_y)) { // Top Left
 				state->alter_offset_x = x - pointer_x;
 				state->alter_offset_y = y - pointer_y;
 				state->alter_state = ALTER_STATE_TOP_LEFT;
-			} else if (circle_intersect(x + width, y, GRABBER_RADIUS, pointer_x, pointer_y)) { // Top Right
+			} else if (circle_intersect(x + width, y, state->grabber_radius, pointer_x, pointer_y)) { // Top Right
 				state->alter_offset_x = x + width - pointer_x;
 				state->alter_offset_y = y - pointer_y;
 				state->alter_state = ALTER_STATE_TOP_RIGHT;
-			} else if (circle_intersect(x, y + height, GRABBER_RADIUS, pointer_x, pointer_y)) { // Bottom Left
+			} else if (circle_intersect(x, y + height, state->grabber_radius, pointer_x, pointer_y)) { // Bottom Left
 				state->alter_offset_x = x - pointer_x;
 				state->alter_offset_y = y + height - pointer_y;
 				state->alter_state = ALTER_STATE_BOTTOM_LEFT;
-			} else if (circle_intersect(x + width, y + height, GRABBER_RADIUS, pointer_x, pointer_y)) { // Bottom Right
+			} else if (circle_intersect(x + width, y + height, state->grabber_radius, pointer_x, pointer_y)) { // Bottom Right
 				state->alter_offset_x = x + width - pointer_x;
 				state->alter_offset_y = y + height - pointer_y;
 				state->alter_state = ALTER_STATE_BOTTOM_RIGHT;
@@ -870,13 +872,17 @@ static const char usage[] =
 	"  -c #rrggbbaa Set border color.\n"
 	"  -s #rrggbbaa Set selection color.\n"
 	"  -B #rrggbbaa Set option box color.\n"
+	"  -g #rrggbbaa Set grabber color.\n"
+	"  -G #rrggbbaa Set grabber border color.\n"
 	"  -F s         Set the font family for the dimensions.\n"
 	"  -w n         Set border weight.\n"
+	"  -R n         Set grabber radius.\n"
 	"  -f s         Set output format.\n"
 	"  -o           Select a display output.\n"
 	"  -p           Select a single point.\n"
 	"  -r           Restrict selection to predefined boxes.\n"
-	"  -a w:h       Force aspect ratio.\n";
+	"  -a w:h       Force aspect ratio.\n"
+	"  -A           Allow altering of selection.\n";
 
 uint32_t parse_color(const char *color) {
 	if (color[0] == '#') {
@@ -1042,6 +1048,8 @@ int main(int argc, char *argv[]) {
 			.border = BORDER_COLOR,
 			.selection = SELECTION_COLOR,
 			.choice = BG_COLOR,
+			.grabber = GRABBER_COLOR,
+			.grabber_border = GRABBER_BORDER_COLOR,
 		},
 		.border_weight = 2,
 		.display_dimensions = false,
@@ -1049,14 +1057,16 @@ int main(int argc, char *argv[]) {
 		.fixed_aspect_ratio = false,
 		.aspect_ratio = 0,
 		.font_family = FONT_FAMILY,
-		.alter_state = ALTER_STATE_NONE
+		.grabber_radius = 10,
+		.alter_selection = false,
+		.alter_state = ALTER_STATE_NONE,
 	};
 
 	int opt;
 	char *format = "%x,%y %wx%h\n";
 	bool output_boxes = false;
 	int w, h;
-	while ((opt = getopt(argc, argv, "hdb:c:s:B:w:proa:f:F:")) != -1) {
+	while ((opt = getopt(argc, argv, "hdb:c:s:B:g:G:w:R:proa:f:F:A")) != -1) {
 		switch (opt) {
 		case 'h':
 			printf("%s", usage);
@@ -1076,6 +1086,12 @@ int main(int argc, char *argv[]) {
 		case 'B':
 			state.colors.choice = parse_color(optarg);
 			break;
+		case 'g':
+			state.colors.grabber = parse_color(optarg);
+			break;
+		case 'G':
+			state.colors.grabber_border = parse_color(optarg);
+			break;
 		case 'f':
 			format = optarg;
 			break;
@@ -1088,6 +1104,16 @@ int main(int argc, char *argv[]) {
 			state.border_weight = strtol(optarg, &endptr, 10);
 			if (*endptr || errno) {
 				fprintf(stderr, "Error: expected numeric argument for -w\n");
+				exit(EXIT_FAILURE);
+			}
+			break;
+		}
+		case 'R': {
+			errno = 0;
+			char *endptr;
+			state.grabber_radius = strtol(optarg, &endptr, 10);
+			if (*endptr || errno) {
+				fprintf(stderr, "Error: expected numeric argument for -R\n");
 				exit(EXIT_FAILURE);
 			}
 			break;
@@ -1113,14 +1139,14 @@ int main(int argc, char *argv[]) {
 			state.fixed_aspect_ratio = true;
 			state.aspect_ratio = (double) h / w;
 			break;
+		case 'A':
+			state.alter_selection = true;
+			break;
 		default:
 			printf("%s", usage);
 			return EXIT_FAILURE;
 		}
 	}
-
-	// TODO: create argument
-	state.alter_selection = true;
 
 	if (state.single_point && state.restrict_selection) {
 		fprintf(stderr, "-p and -r cannot be used together\n");
