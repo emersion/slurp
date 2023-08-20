@@ -72,6 +72,8 @@ struct slurp_state {
 	bool alter_selection;
 
 	int alter_state;
+	int32_t alter_offset_x;
+	int32_t alter_offset_y;
 
 	struct slurp_box result;
 };

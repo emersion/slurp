@@ -132,29 +132,32 @@ static void handle_active_selection_motion(struct slurp_seat *seat, struct slurp
 }
 
 static void handle_alter_selection_motion(struct slurp_seat *seat, struct slurp_selection *current_selection) {
+	const int32_t ptr_off_x = current_selection->x + seat->state->alter_offset_x;
+	const int32_t ptr_off_y = current_selection->y + seat->state->alter_offset_y;
+
 	switch (seat->state->alter_state) {
 		case ALTER_STATE_INITIAL:
 			handle_active_selection_motion(seat, current_selection);
 			break;
 		case ALTER_STATE_TOP_LEFT:
-			current_selection->selection.width += current_selection->selection.x - current_selection->x;
-			current_selection->selection.height += current_selection->selection.y - current_selection->y;
-			current_selection->selection.x = current_selection->x;
-			current_selection->selection.y = current_selection->y;
+			current_selection->selection.width += current_selection->selection.x - ptr_off_x;
+			current_selection->selection.height += current_selection->selection.y - ptr_off_y;
+			current_selection->selection.x = ptr_off_x;
+			current_selection->selection.y = ptr_off_y;
 			break;
 		case ALTER_STATE_TOP_RIGHT:
-			current_selection->selection.width = current_selection->x - current_selection->selection.x;
-			current_selection->selection.height += current_selection->selection.y - current_selection->y;
-			current_selection->selection.y = current_selection->y;
+			current_selection->selection.width = ptr_off_x - current_selection->selection.x;
+			current_selection->selection.height += current_selection->selection.y - ptr_off_y;
+			current_selection->selection.y = ptr_off_y;
 			break;
 		case ALTER_STATE_BOTTOM_LEFT:
-			current_selection->selection.width += current_selection->selection.x - current_selection->x;
-			current_selection->selection.x = current_selection->x;
-			current_selection->selection.height = current_selection->y - current_selection->selection.y;
+			current_selection->selection.width += current_selection->selection.x - ptr_off_x;
+			current_selection->selection.x = ptr_off_x;
+			current_selection->selection.height = ptr_off_y - current_selection->selection.y;
 			break;
 		case ALTER_STATE_BOTTOM_RIGHT:
-			current_selection->selection.width = current_selection->x - current_selection->selection.x;
-			current_selection->selection.height = current_selection->y - current_selection->selection.y;
+			current_selection->selection.width = ptr_off_x - current_selection->selection.x;
+			current_selection->selection.height = ptr_off_y - current_selection->selection.y;
 			break;
 	}
 
@@ -309,12 +312,20 @@ static void handle_selection_start(struct slurp_seat *seat,
 			const int32_t height = current_selection->selection.height;
 
 			if (circle_intersect(x, y, GRABBER_RADIUS, pointer_x, pointer_y)) { // Top Left
+				state->alter_offset_x = x - pointer_x;
+				state->alter_offset_y = y - pointer_y;
 				state->alter_state = ALTER_STATE_TOP_LEFT;
 			} else if (circle_intersect(x + width, y, GRABBER_RADIUS, pointer_x, pointer_y)) { // Top Right
+				state->alter_offset_x = x + width - pointer_x;
+				state->alter_offset_y = y - pointer_y;
 				state->alter_state = ALTER_STATE_TOP_RIGHT;
 			} else if (circle_intersect(x, y + height, GRABBER_RADIUS, pointer_x, pointer_y)) { // Bottom Left
+				state->alter_offset_x = x - pointer_x;
+				state->alter_offset_y = y + height - pointer_y;
 				state->alter_state = ALTER_STATE_BOTTOM_LEFT;
 			} else if (circle_intersect(x + width, y + height, GRABBER_RADIUS, pointer_x, pointer_y)) { // Bottom Right
+				state->alter_offset_x = x + width - pointer_x;
+				state->alter_offset_y = y + height - pointer_y;
 				state->alter_state = ALTER_STATE_BOTTOM_RIGHT;
 			} else { // Anywhere else
 				// Reset selection
