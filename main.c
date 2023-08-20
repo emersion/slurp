@@ -381,6 +381,9 @@ static void handle_selection_end(struct slurp_seat *seat,
 	}
 
 	if (state->alter_selection) {
+		if (state->alter_state == ALTER_STATE_INITIAL) {
+			seat_set_outputs_dirty(seat);
+		}
 		state->alter_state = ALTER_STATE_NONE;
 	} else {
 		state->running = false;

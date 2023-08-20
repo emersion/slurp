@@ -109,9 +109,11 @@ void render(struct slurp_output *output) {
 		cairo_stroke(cairo);
 
 		if (state->alter_selection) {
-			// Draw grabbers in the corners
-			// TODO: make color configurable
-			draw_grabbers(cairo, &b, 0x00FF00AA, 0xFF0000FF);
+			if (state->alter_state != ALTER_STATE_INITIAL) {
+				// Draw grabbers in the corners
+				// TODO: make color configurable
+				draw_grabbers(cairo, &b, 0x00FF00AA, 0xFF0000FF);
+			}
 		}
 
 		if (state->display_dimensions) {
