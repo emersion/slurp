@@ -1181,6 +1181,11 @@ int main(int argc, char *argv[]) {
 		return EXIT_FAILURE;
 	}
 
+	if (state.alter_selection && state.restrict_selection) {
+		fprintf(stderr, "-A and -r cannot be used together\n");
+		return EXIT_FAILURE;
+	}
+
 	wl_list_init(&state.boxes);
 	if (!isatty(STDIN_FILENO) && !state.single_point) {
 		char *line = NULL;
