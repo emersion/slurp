@@ -454,13 +454,9 @@ static void handle_selection_start(struct slurp_seat *seat,
 				state->alter_state = ALTER_STATE_INITIAL;
 			}
 		} else {
-			switch (state->alter_state) {
-				case ALTER_STATE_NONE:
-					current_selection->anchor_x = current_selection->x;
-					current_selection->anchor_y = current_selection->y;
-					state->alter_state = ALTER_STATE_INITIAL;
-					break;
-			}
+			current_selection->anchor_x = current_selection->x;
+			current_selection->anchor_y = current_selection->y;
+			state->alter_state = ALTER_STATE_INITIAL;
 		}
 	} else {
 		current_selection->anchor_x = current_selection->x;
