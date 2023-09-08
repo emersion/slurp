@@ -15,7 +15,7 @@ cairo = dependency('cairo')
 realtime = cc.find_library('rt')
 wayland_client = dependency('wayland-client')
 wayland_cursor = dependency('wayland-cursor')
-wayland_protos = dependency('wayland-protocols', version: '>=1.14')
+wayland_protos = dependency('wayland-protocols', version: '>=1.32')
 xkbcommon = dependency('xkbcommon')
 
 subdir('protocol')
