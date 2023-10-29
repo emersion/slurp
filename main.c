@@ -172,6 +172,11 @@ static void pointer_handle_enter(void *data, struct wl_pointer *wl_pointer,
 			output->cursor_image->hotspot_y / output->scale);
 		wl_surface_commit(seat->cursor_surface);
 	}
+
+	if (seat->state->no_drag) {
+		seat->state->just_pressed = false;
+		seat->state->is_selecting = false;
+	}
 }
 
 static void pointer_handle_leave(void *data, struct wl_pointer *wl_pointer,
@@ -185,6 +190,7 @@ static void pointer_handle_leave(void *data, struct wl_pointer *wl_pointer,
 static void pointer_handle_motion(void *data, struct wl_pointer *wl_pointer,
 		uint32_t time, wl_fixed_t surface_x, wl_fixed_t surface_y) {
 	struct slurp_seat *seat = data;
+	struct slurp_state *state = seat->state;
 	// the places the cursor moved away from are also dirty
 	if (seat->pointer_selection.has_selection) {
 		seat_set_outputs_dirty(seat);
@@ -194,11 +200,28 @@ static void pointer_handle_motion(void *data, struct wl_pointer *wl_pointer,
 
 	switch (seat->button_state) {
 	case WL_POINTER_BUTTON_STATE_RELEASED:
-		seat_update_selection(seat);
+		if (state->no_drag) {
+			state->just_pressed = false;
+		} else {
+			state->is_selecting = false;
+		}
 		break;
 	case WL_POINTER_BUTTON_STATE_PRESSED:;
-		handle_active_selection_motion(seat, &seat->pointer_selection);
+		if (state->no_drag) {
+			if (!state->just_pressed) {
+				state->is_selecting = !state->is_selecting;
+				state->just_pressed = true;
+			}
+		} else {
+			state->is_selecting = true;
+		}
 		break;
+	}
+
+	if (state->is_selecting) {
+		handle_active_selection_motion(seat, &seat->pointer_selection);
+	} else {
+		seat_update_selection(seat);
 	}
 
 	if (seat->pointer_selection.has_selection) {
@@ -242,6 +265,7 @@ static void pointer_handle_button(void *data, struct wl_pointer *wl_pointer,
 		uint32_t serial, uint32_t time, uint32_t button,
 		uint32_t button_state) {
 	struct slurp_seat *seat = data;
+	struct slurp_state *state = seat->state;
 	if (seat->touch_selection.has_selection) {
 		return;
 	}
@@ -250,11 +274,28 @@ static void pointer_handle_button(void *data, struct wl_pointer *wl_pointer,
 
 	switch (button_state) {
 	case WL_POINTER_BUTTON_STATE_PRESSED:
-		handle_selection_start(seat, &seat->pointer_selection);
+		if (state->no_drag) {
+			if (!state->just_pressed) {
+				state->is_selecting = !state->is_selecting;
+				state->just_pressed = true;
+			}
+		} else {
+			state->is_selecting = true;
+		}
 		break;
 	case WL_POINTER_BUTTON_STATE_RELEASED:
-		handle_selection_end(seat, &seat->pointer_selection);
+		if (state->no_drag) {
+			state->just_pressed = false;
+		} else {
+			state->is_selecting = false;
+		}
 		break;
+	}
+
+	if (state->is_selecting) {
+		handle_selection_start(seat, &seat->pointer_selection);
+	} else {
+		handle_selection_end(seat, &seat->pointer_selection);
 	}
 }
 
@@ -884,6 +925,7 @@ int main(int argc, char *argv[]) {
 		.display_dimensions = false,
 		.restrict_selection = false,
 		.fixed_aspect_ratio = false,
+		.no_drag = false,
 		.aspect_ratio = 0,
 		.font_family = FONT_FAMILY
 	};
@@ -892,13 +934,16 @@ int main(int argc, char *argv[]) {
 	char *format = "%x,%y %wx%h\n";
 	bool output_boxes = false;
 	int w, h;
-	while ((opt = getopt(argc, argv, "hdb:c:s:B:w:proa:f:F:")) != -1) {
+	while ((opt = getopt(argc, argv, "hdDb:c:s:B:w:proa:f:F:")) != -1) {
 		switch (opt) {
 		case 'h':
 			printf("%s", usage);
 			return EXIT_SUCCESS;
 		case 'd':
 			state.display_dimensions = true;
+			break;
+		case 'D':
+			state.no_drag = true;
 			break;
 		case 'b':
 			state.colors.background = parse_color(optarg);
