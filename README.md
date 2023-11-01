@@ -18,6 +18,8 @@ Install dependencies:
 Then run:
 
 ```sh
+git clone https://github.com/emersion/slurp
+cd slurp
 meson setup build
 ninja -C build
 build/slurp
