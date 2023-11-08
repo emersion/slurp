@@ -1015,10 +1015,6 @@ int main(int argc, char *argv[]) {
 		return EXIT_FAILURE;
 	}
 
-	if (!state.cursor_shape_manager && !create_cursors(&state)) {
-		return EXIT_FAILURE;
-	}
-
 	struct slurp_output *output;
 	wl_list_for_each(output, &state.outputs, link) {
 		output->surface = wl_compositor_create_surface(state.compositor);
@@ -1053,6 +1049,10 @@ int main(int argc, char *argv[]) {
 	}
 	// second roundtrip for xdg-output
 	wl_display_roundtrip(state.display);
+
+    if (!state.cursor_shape_manager && !create_cursors(&state)) {
+		return EXIT_FAILURE;
+	}
 
 	if (output_boxes) {
 		struct slurp_output *box_output;
