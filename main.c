@@ -1050,7 +1050,7 @@ int main(int argc, char *argv[]) {
 	// second roundtrip for xdg-output
 	wl_display_roundtrip(state.display);
 
-    if (!state.cursor_shape_manager && !create_cursors(&state)) {
+	if (!state.cursor_shape_manager && !create_cursors(&state)) {
 		return EXIT_FAILURE;
 	}
 
