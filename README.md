@@ -1,7 +1,7 @@
 # slurp
 
 Select a region in a Wayland compositor and print it to the standard output.
-Works well with [grim](https://github.com/emersion/grim).
+Works well with [grim].
 
 Join the IRC channel: [#emersion on Libera Chat][IRC].
 
@@ -59,6 +59,7 @@ Either [send GitHub pull requests][GitHub] or [send patches on the mailing list]
 
 MIT
 
+[grim]: https://sr.ht/~emersion/grim/
 [IRC]: https://web.libera.chat/gamja/#emersion
 [GitHub]: https://github.com/emersion/slurp
 [ML]: https://lists.sr.ht/%7Eemersion/public-inbox
