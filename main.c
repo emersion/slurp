@@ -551,7 +551,9 @@ static void destroy_output(struct slurp_output *output) {
 	wl_list_remove(&output->link);
 	finish_buffer(&output->buffers[0]);
 	finish_buffer(&output->buffers[1]);
-	wl_cursor_theme_destroy(output->cursor_theme);
+	if (output->cursor_theme) {
+		wl_cursor_theme_destroy(output->cursor_theme);
+	}
 	zwlr_layer_surface_v1_destroy(output->layer_surface);
 	if (output->xdg_output) {
 		zxdg_output_v1_destroy(output->xdg_output);
@@ -690,6 +692,9 @@ static void handle_global(void *data, struct wl_registry *registry,
 	} else if (strcmp(interface, zxdg_output_manager_v1_interface.name) == 0) {
 		state->xdg_output_manager = wl_registry_bind(registry, name,
 			&zxdg_output_manager_v1_interface, 2);
+	} else if (strcmp(interface, wp_cursor_shape_manager_v1_interface.name) == 0) {
+		state->cursor_shape_manager = wl_registry_bind(registry, name,
+			&wp_cursor_shape_manager_v1_interface, 1);
 	}
 }
 
@@ -1095,6 +1100,9 @@ int main(int argc, char *argv[]) {
 	zwlr_layer_shell_v1_destroy(state.layer_shell);
 	if (state.xdg_output_manager != NULL) {
 		zxdg_output_manager_v1_destroy(state.xdg_output_manager);
+	}
+	if (state.cursor_shape_manager != NULL) {
+		wp_cursor_shape_manager_v1_destroy(state.cursor_shape_manager);
 	}
 	wl_compositor_destroy(state.compositor);
 	wl_shm_destroy(state.shm);
