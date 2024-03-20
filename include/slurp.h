@@ -30,6 +30,9 @@ struct slurp_selection {
 struct slurp_state {
 	bool running;
 	bool edit_anchor;
+	bool is_selecting;
+	bool just_pressed;
+
 
 	struct wl_display *display;
 	struct wl_registry *registry;
@@ -59,6 +62,7 @@ struct slurp_state {
 	struct wl_list boxes; // slurp_box::link
 	bool fixed_aspect_ratio;
 	double aspect_ratio;  // h / w
+	bool no_drag;
 
 	struct slurp_box result;
 };

@@ -73,6 +73,10 @@ held, the selection is moved instead of being resized.
 	Force selections to have the given aspect ratio. This constraint is not
 	applied to the predefined rectangles specified using *-o*.
 
+*-D*
+	Allow to click twice to select a rectangle, instead of the usual
+	click-and-drag method.
+
 # COLORS
 
 Colors may be specified in #RRGGBB or #RRGGBBAA format. The # is optional.
