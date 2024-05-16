@@ -874,10 +874,6 @@ static bool create_cursors(struct slurp_state *state) {
 int main(int argc, char *argv[]) {
 	int status = EXIT_SUCCESS;
 
-	char *result_str = 0;
-	size_t length;
-	FILE *stream = open_memstream(&result_str, &length);
-
 	struct slurp_state state = {
 		.colors = {
 			.background = BG_COLOR,
@@ -1077,10 +1073,13 @@ int main(int argc, char *argv[]) {
 		// This space intentionally left blank
 	}
 
+	char *result_str = 0;
+	size_t length;
 	if (state.result.width == 0 && state.result.height == 0) {
 		fprintf(stderr, "selection cancelled\n");
 		status = EXIT_FAILURE;
 	} else {
+		FILE *stream = open_memstream(&result_str, &length);
 		print_formatted_result(stream, &state, format);
 		fclose(stream);
 	}
