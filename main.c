@@ -149,7 +149,7 @@ static void pointer_handle_enter(void *data, struct wl_pointer *wl_pointer,
 	case WL_POINTER_BUTTON_STATE_RELEASED:
 		seat_update_selection(seat);
 		break;
-	case WL_POINTER_BUTTON_STATE_PRESSED:;
+	case WL_POINTER_BUTTON_STATE_PRESSED:
 		handle_active_selection_motion(seat, &seat->pointer_selection);
 		break;
 	}
@@ -196,7 +196,7 @@ static void pointer_handle_motion(void *data, struct wl_pointer *wl_pointer,
 	case WL_POINTER_BUTTON_STATE_RELEASED:
 		seat_update_selection(seat);
 		break;
-	case WL_POINTER_BUTTON_STATE_PRESSED:;
+	case WL_POINTER_BUTTON_STATE_PRESSED:
 		handle_active_selection_motion(seat, &seat->pointer_selection);
 		break;
 	}
