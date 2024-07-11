@@ -1,6 +1,6 @@
 #include <cairo/cairo.h>
+#include <pango/pangocairo.h>
 #include <stdio.h>
-#include <stdlib.h>
 
 #include "pool-buffer.h"
 #include "render.h"
@@ -71,18 +71,23 @@ void render(struct slurp_output *output) {
 		cairo_stroke(cairo);
 
 		if (state->display_dimensions) {
-			cairo_select_font_face(cairo, state->font_family,
-					       CAIRO_FONT_SLANT_NORMAL,
-					       CAIRO_FONT_WEIGHT_NORMAL);
-			cairo_set_font_size(cairo, 14);
 			set_source_u32(cairo, state->colors.border);
 			// buffer of 12 can hold selections up to 99999x99999
 			char dimensions[12];
-			snprintf(dimensions, sizeof(dimensions), "%ix%i",
-				 b.width, b.height);
-			cairo_move_to(cairo, b.x + b.width + 10,
-				      b.y + b.height + 20);
-			cairo_show_text(cairo, dimensions);
+			snprintf(dimensions, sizeof(dimensions), "%ix%i", b.width, b.height);
+
+			PangoLayout *layout = pango_cairo_create_layout (cairo);
+			PangoFontDescription *desc = pango_font_description_new();
+			pango_font_description_set_family_static(desc, state->font_family);
+			pango_font_description_set_size(desc, 11 * PANGO_SCALE);
+			pango_font_description_set_style(desc, PANGO_STYLE_NORMAL);
+			pango_font_description_set_weight(desc, PANGO_WEIGHT_NORMAL);
+			pango_layout_set_font_description (layout, desc);
+			pango_font_description_free (desc);
+
+			cairo_move_to(cairo, b.x + b.width + 12, b.y + b.height + 8);
+			pango_layout_set_text (layout, dimensions, -1);
+			pango_cairo_show_layout (cairo, layout);
 		}
 	}
 }
