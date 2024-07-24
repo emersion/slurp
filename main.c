@@ -70,22 +70,23 @@ static void move_seat(struct slurp_seat *seat, wl_fixed_t surface_x,
 	current_selection->y = y;
 }
 
-static void seat_update_selection(struct slurp_seat *seat) {
-	seat->pointer_selection.has_selection = false;
+static void seat_update_selection(struct slurp_seat *seat,
+		struct slurp_selection *current_selection) {
+	current_selection->has_selection = false;
 
 	// find smallest box intersecting the cursor
 	struct slurp_box *box;
 	wl_list_for_each(box, &seat->state->boxes, link) {
-		if (in_box(box, seat->pointer_selection.x,
-			   seat->pointer_selection.y)) {
-			if (seat->pointer_selection.has_selection &&
+		if (in_box(box, current_selection->x,
+			   current_selection->y)) {
+			if (current_selection->has_selection &&
 				box_size(
-					&seat->pointer_selection.selection) <
+					&current_selection->selection) <
 					box_size(box)) {
 				continue;
 			}
-			seat->pointer_selection.selection = *box;
-			seat->pointer_selection.has_selection = true;
+			current_selection->selection = *box;
+			current_selection->has_selection = true;
 		}
 	}
 }
@@ -147,7 +148,7 @@ static void pointer_handle_enter(void *data, struct wl_pointer *wl_pointer,
 
 	switch (seat->button_state) {
 	case WL_POINTER_BUTTON_STATE_RELEASED:
-		seat_update_selection(seat);
+		seat_update_selection(seat, &seat->pointer_selection);
 		break;
 	case WL_POINTER_BUTTON_STATE_PRESSED:
 		handle_active_selection_motion(seat, &seat->pointer_selection);
@@ -194,7 +195,7 @@ static void pointer_handle_motion(void *data, struct wl_pointer *wl_pointer,
 
 	switch (seat->button_state) {
 	case WL_POINTER_BUTTON_STATE_RELEASED:
-		seat_update_selection(seat);
+		seat_update_selection(seat, &seat->pointer_selection);
 		break;
 	case WL_POINTER_BUTTON_STATE_PRESSED:
 		handle_active_selection_motion(seat, &seat->pointer_selection);
@@ -376,6 +377,7 @@ static void touch_handle_down(void *data, struct wl_touch *touch,
 		seat->touch_selection.current_output =
 			output_from_surface(seat->state, surface);
 		move_seat(seat, x, y, &seat->touch_selection);
+		seat_update_selection(seat, &seat->touch_selection);
 		handle_selection_start(seat, &seat->touch_selection);
 	}
 }
