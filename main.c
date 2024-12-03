@@ -310,13 +310,6 @@ static void keyboard_handle_key(void *data, struct wl_keyboard *wl_keyboard,
 	switch (key_state) {
 	case WL_KEYBOARD_KEY_STATE_PRESSED:
 		switch (keysym) {
-		case XKB_KEY_Escape:
-			seat->pointer_selection.has_selection = false;
-			seat->touch_selection.has_selection = false;
-			state->edit_anchor = false;
-			state->running = false;
-			break;
-
 		case XKB_KEY_space:
 			if (!seat->pointer_selection.has_selection &&
 					!seat->touch_selection.has_selection) {
@@ -330,6 +323,15 @@ static void keyboard_handle_key(void *data, struct wl_keyboard *wl_keyboard,
 				state->aspect_ratio = 1;
 				recompute_selection(seat);
 			}
+			break;
+		default:
+			if (keysym != XKB_KEY_Escape && !state->cancel_on_keypress) {
+				break;
+			}
+			seat->pointer_selection.has_selection = false;
+			seat->touch_selection.has_selection = false;
+			state->edit_anchor = false;
+			state->running = false;
 			break;
 		}
 		break;
@@ -718,7 +720,8 @@ static const char usage[] =
 	"  -o           Select a display output.\n"
 	"  -p           Select a single point.\n"
 	"  -r           Restrict selection to predefined boxes.\n"
-	"  -a w:h       Force aspect ratio.\n";
+	"  -a w:h       Force aspect ratio.\n"
+	"  -k           Cancel selection on any key press.\n";
 
 uint32_t parse_color(const char *color) {
 	if (color[0] == '#') {
@@ -886,6 +889,7 @@ int main(int argc, char *argv[]) {
 		.restrict_selection = false,
 		.fixed_aspect_ratio = false,
 		.aspect_ratio = 0,
+		.cancel_on_keypress = false,
 		.font_family = FONT_FAMILY
 	};
 
@@ -893,7 +897,7 @@ int main(int argc, char *argv[]) {
 	char *format = "%x,%y %wx%h\n";
 	bool output_boxes = false;
 	int w, h;
-	while ((opt = getopt(argc, argv, "hdb:c:s:B:w:proa:f:F:")) != -1) {
+	while ((opt = getopt(argc, argv, "hdb:c:s:B:w:proa:f:F:k")) != -1) {
 		switch (opt) {
 		case 'h':
 			printf("%s", usage);
@@ -931,6 +935,9 @@ int main(int argc, char *argv[]) {
 		}
 		case 'p':
 			state.single_point = true;
+			break;
+		case 'k':
+			state.cancel_on_keypress = true;
 			break;
 		case 'o':
 			output_boxes = true;

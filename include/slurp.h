@@ -59,6 +59,7 @@ struct slurp_state {
 	struct wl_list boxes; // slurp_box::link
 	bool fixed_aspect_ratio;
 	double aspect_ratio;  // h / w
+	bool cancel_on_keypress;
 
 	struct slurp_box result;
 };
