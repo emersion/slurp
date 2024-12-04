@@ -2,6 +2,7 @@
 
 #include <assert.h>
 #include <errno.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -18,6 +19,8 @@
 #define BORDER_COLOR 0x000000FF
 #define SELECTION_COLOR 0x00000000
 #define FONT_FAMILY "sans-serif"
+
+#define PIDFILE_LEN 120
 
 static void noop() {
 	// This space intentionally left blank
@@ -718,7 +721,8 @@ static const char usage[] =
 	"  -o           Select a display output.\n"
 	"  -p           Select a single point.\n"
 	"  -r           Restrict selection to predefined boxes.\n"
-	"  -a w:h       Force aspect ratio.\n";
+	"  -a w:h       Force aspect ratio.\n"
+	"  -m           Allow multiple instances to run at the same time.\n";
 
 uint32_t parse_color(const char *color) {
 	if (color[0] == '#') {
@@ -871,6 +875,55 @@ static bool create_cursors(struct slurp_state *state) {
 	return true;
 }
 
+bool get_pidfile_path(char *pidfile_path) {
+	char *runtime_dir = getenv("XDG_RUNTIME_DIR");
+	if (!runtime_dir) {
+		fprintf(stderr, "XDG_RUNTIME_DIR is not set\n");
+		return false;
+	}
+
+	char *display = getenv("WAYLAND_DISPLAY");
+	if (!display) {
+		fprintf(stderr, "WAYLAND_DISPLAY is not set\n");
+		return false;
+	}
+
+	if (snprintf(pidfile_path, PIDFILE_LEN, "%s/slurp.%s.pid", runtime_dir, display) >= PIDFILE_LEN) {
+		fprintf(stderr, "pid file path is too long\n");
+		return false;
+	}
+
+	return true;
+}
+
+bool check_and_update_pidfile(char *pidfile_path) {
+	FILE *pidfile = fopen(pidfile_path, "r");
+	if (pidfile) {
+		pid_t pid;
+		if (fscanf(pidfile, "%i", &pid) == 1) {
+			// if the process exists
+			if (!(kill(pid, 0) == -1 && errno == ESRCH)) {
+				fclose(pidfile);
+				fprintf(stderr, "another instance of slurp is already running on this display\n");
+				return false;
+			}
+		}
+		pidfile = freopen(NULL, "w", pidfile);
+	} else {
+		pidfile = fopen(pidfile_path, "w");
+	}
+
+	if (!pidfile) {
+		fprintf(stderr, "failed to open pidfile\n");
+		return false;
+	}
+
+	fprintf(pidfile, "%i", getpid());
+	fclose(pidfile);
+
+	return true;
+}
+
 int main(int argc, char *argv[]) {
 	int status = EXIT_SUCCESS;
 
@@ -881,6 +934,7 @@ int main(int argc, char *argv[]) {
 			.selection = SELECTION_COLOR,
 			.choice = BG_COLOR,
 		},
+		.multiple_instances = false,
 		.border_weight = 2,
 		.display_dimensions = false,
 		.restrict_selection = false,
@@ -893,7 +947,7 @@ int main(int argc, char *argv[]) {
 	char *format = "%x,%y %wx%h\n";
 	bool output_boxes = false;
 	int w, h;
-	while ((opt = getopt(argc, argv, "hdb:c:s:B:w:proa:f:F:")) != -1) {
+	while ((opt = getopt(argc, argv, "hdb:c:s:B:w:proa:f:F:m")) != -1) {
 		switch (opt) {
 		case 'h':
 			printf("%s", usage);
@@ -950,6 +1004,9 @@ int main(int argc, char *argv[]) {
 			state.fixed_aspect_ratio = true;
 			state.aspect_ratio = (double) h / w;
 			break;
+		case 'm':
+			state.multiple_instances = true;
+			break;
 		default:
 			printf("%s", usage);
 			return EXIT_FAILURE;
@@ -984,6 +1041,16 @@ int main(int argc, char *argv[]) {
 	if (state.display == NULL) {
 		fprintf(stderr, "failed to create display\n");
 		return EXIT_FAILURE;
+	}
+
+	char pidfile_path[PIDFILE_LEN];
+	if (!state.multiple_instances) {
+		if (!get_pidfile_path(pidfile_path)) {
+			return EXIT_FAILURE;
+		}
+		if (!check_and_update_pidfile(pidfile_path)) {
+			return EXIT_FAILURE;
+		}
 	}
 
 	if ((state.xkb_context = xkb_context_new(XKB_CONTEXT_NO_FLAGS)) == NULL) {
@@ -1071,6 +1138,10 @@ int main(int argc, char *argv[]) {
 	state.running = true;
 	while (state.running && wl_display_dispatch(state.display) != -1) {
 		// This space intentionally left blank
+	}
+
+	if (!state.multiple_instances) {
+		remove(pidfile_path);
 	}
 
 	char *result_str = 0;
