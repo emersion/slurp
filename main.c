@@ -242,6 +242,8 @@ static void pointer_handle_button(void *data, struct wl_pointer *wl_pointer,
 		uint32_t serial, uint32_t time, uint32_t button,
 		uint32_t button_state) {
 	struct slurp_seat *seat = data;
+	enum wl_pointer_button_state prev_state = seat->button_state;
+
 	if (seat->touch_selection.has_selection) {
 		return;
 	}
@@ -253,7 +255,11 @@ static void pointer_handle_button(void *data, struct wl_pointer *wl_pointer,
 		handle_selection_start(seat, &seat->pointer_selection);
 		break;
 	case WL_POINTER_BUTTON_STATE_RELEASED:
-		handle_selection_end(seat, &seat->pointer_selection);
+		// Ignore a release event, if we didn't get the pressed event.
+		// That probably means the press happened before slurp started.
+		if (prev_state == WL_POINTER_BUTTON_STATE_PRESSED) {
+			handle_selection_end(seat, &seat->pointer_selection);
+		}
 		break;
 	}
 }
