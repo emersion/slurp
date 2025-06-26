@@ -69,6 +69,11 @@ held, the selection is moved instead of being resized.
 	from standard input, if *-o* is used, the rectangles of all display outputs.
 	This option conflicts with *-p*.
 
+*-C*
+	Prevents exiting immediately once the selection rectangle is defined.
+	The user can re-select a new rectangle until the Return key is pressed.
+	This option conflicts with *-p*.
+
 *-a* _width_:_height_
 	Force selections to have the given aspect ratio. This constraint is not
 	applied to the predefined rectangles specified using *-o*.
@@ -114,7 +119,7 @@ The following keyboard actions can be used during selection:
 
 *Escape*	Cancel the selection and exit slurp
 
-*Space*	 If currently making a selection, while space is held down, move the
+*Space*	If currently making a selection, while space is held down, move the
 entire selection rather than change the selection's size as you move the
 pointer.
 
@@ -122,6 +127,9 @@ pointer.
 ratio to 1:1 while shift is held down, releasing it restores the un-constrained
 aspect ratio. *Note:* This behavior may change in the future depending on
 feedback.
+
+*Return*	If the *-C* option is specified, slurp will wait until the Return
+key is pressed before exiting.
 
 
 # AUTHORS
