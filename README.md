@@ -64,7 +64,7 @@ Either [send GitHub pull requests][GitHub] or [send patches on the mailing list]
 
 MIT
 
-[grim]: https://sr.ht/~emersion/grim/
+[grim]: https://gitlab.freedesktop.org/emersion/grim
 [IRC]: https://web.libera.chat/gamja/#emersion
 [GitHub]: https://github.com/emersion/slurp
 [ML]: https://lists.sr.ht/%7Eemersion/public-inbox
