@@ -107,6 +107,8 @@ static void handle_active_selection_motion(struct slurp_seat *seat, struct slurp
 		return;
 	}
 
+	seat->state->resizing_selection = true;
+
 	int32_t anchor_x = current_selection->anchor_x;
 	int32_t anchor_y = current_selection->anchor_y;
 	int32_t dist_x = current_selection->x - anchor_x;
@@ -235,6 +237,7 @@ static void handle_selection_end(struct slurp_seat *seat,
 	if (current_selection->has_selection) {
 		state->result = current_selection->selection;
 	}
+	state->resizing_selection = false;
 	state->running = false;
 }
 
@@ -328,7 +331,9 @@ static void keyboard_handle_key(void *data, struct wl_keyboard *wl_keyboard,
 		case XKB_KEY_Shift_R:
 			if (!state->fixed_aspect_ratio) {
 				state->aspect_ratio = 1;
-				recompute_selection(seat);
+				if (state->resizing_selection) {
+					recompute_selection(seat);
+				}
 			}
 			break;
 		}
@@ -339,7 +344,9 @@ static void keyboard_handle_key(void *data, struct wl_keyboard *wl_keyboard,
 			state->edit_anchor = false;
 		} else if (!state->fixed_aspect_ratio && (keysym == XKB_KEY_Shift_L || keysym == XKB_KEY_Shift_R)) {
 			state->aspect_ratio = 0;
-			recompute_selection(seat);
+			if (state->resizing_selection) {
+				recompute_selection(seat);
+			}
 		}
 		break;
 	}
@@ -884,6 +891,7 @@ int main(int argc, char *argv[]) {
 		.border_weight = 2,
 		.display_dimensions = false,
 		.restrict_selection = false,
+		.resizing_selection = false,
 		.fixed_aspect_ratio = false,
 		.aspect_ratio = 0,
 		.font_family = FONT_FAMILY
