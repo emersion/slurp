@@ -12,6 +12,7 @@ add_project_arguments('-Wno-unused-parameter', language: 'c')
 cc = meson.get_compiler('c')
 
 cairo = dependency('cairo')
+pangocairo = dependency('pangocairo')
 realtime = cc.find_library('rt')
 wayland_client = dependency('wayland-client')
 wayland_cursor = dependency('wayland-cursor')
@@ -30,6 +31,7 @@ executable(
 	],
 	dependencies: [
 		cairo,
+		pangocairo,
 		realtime,
 		wayland_client,
 		wayland_cursor,

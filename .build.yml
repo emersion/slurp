@@ -4,6 +4,7 @@ packages:
   - wayland
   - wayland-protocols
   - cairo
+  - pango
   - libxkbcommon
 sources:
   - https://github.com/emerison/slurp
