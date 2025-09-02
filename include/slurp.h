@@ -6,6 +6,7 @@
 #include <wayland-client.h>
 
 #include "pool-buffer.h"
+#include "cursor-shape-v1-client-protocol.h"
 #include "wlr-layer-shell-unstable-v1-client-protocol.h"
 #include "xdg-output-unstable-v1-client-protocol.h"
 
@@ -44,6 +45,7 @@ struct slurp_state {
 	struct wl_compositor *compositor;
 	struct zwlr_layer_shell_v1 *layer_shell;
 	struct zxdg_output_manager_v1 *xdg_output_manager;
+	struct wp_cursor_shape_manager_v1 *cursor_shape_manager;
 	struct wl_list outputs; // slurp_output::link
 	struct wl_list seats; // slurp_seat::link
 

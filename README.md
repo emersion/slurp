@@ -1,9 +1,9 @@
 # slurp
 
 Select a region in a Wayland compositor and print it to the standard output.
-Works well with [grim](https://github.com/emersion/grim).
+Works well with [grim].
 
-Join the IRC channel: #emersion on Libera Chat.
+Join the IRC channel: [#emersion on Libera Chat][IRC].
 
 ## Building
 
@@ -18,7 +18,9 @@ Install dependencies:
 Then run:
 
 ```sh
-meson build
+git clone https://github.com/emersion/slurp
+cd slurp
+meson setup build
 ninja -C build
 build/slurp
 ```
@@ -49,13 +51,20 @@ Select a window under Sway, using `swaymsg` and `jq`:
 swaymsg -t get_tree | jq -r '.. | select(.pid? and .visible?) | .rect | "\(.x),\(.y) \(.width)x\(.height)"' | slurp
 ```
 
+Select a window without border under Sway, using `swaymsg` and `jq`:
+
+```sh
+swaymsg -t get_tree | jq -r '.. | select(.pid? and .visible?) | "\(.rect.x+.window_rect.x),\(.rect.y+.window_rect.y) \(.window_rect.width)x\(.window_rect.height)"' | slurp
+```
 ## Contributing
 
-Either [send GitHub pull requests][1] or [send patches on the mailing list][2].
+Either [send GitHub pull requests][GitHub] or [send patches on the mailing list][ML].
 
 ## License
 
 MIT
 
-[1]: https://github.com/emersion/slurp
-[2]: https://lists.sr.ht/%7Eemersion/public-inbox
+[grim]: https://gitlab.freedesktop.org/emersion/grim
+[IRC]: https://web.libera.chat/gamja/#emersion
+[GitHub]: https://github.com/emersion/slurp
+[ML]: https://lists.sr.ht/%7Eemersion/public-inbox

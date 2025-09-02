@@ -1,5 +1,6 @@
 #define _POSIX_C_SOURCE 200809L
 
+#include <assert.h>
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -46,6 +47,10 @@ static int32_t box_size(const struct slurp_box *box) {
 
 static int max(int a, int b) {
 	return (a > b) ? a : b;
+}
+
+static int min(int a, int b) {
+	return (a < b) ? a : b;
 }
 
 static struct slurp_output *output_from_surface(struct slurp_state *state,
@@ -146,20 +151,29 @@ static void pointer_handle_enter(void *data, struct wl_pointer *wl_pointer,
 	case WL_POINTER_BUTTON_STATE_RELEASED:
 		seat_update_selection(seat);
 		break;
-	case WL_POINTER_BUTTON_STATE_PRESSED:;
+	case WL_POINTER_BUTTON_STATE_PRESSED:
 		handle_active_selection_motion(seat, &seat->pointer_selection);
 		break;
 	}
 
 	seat_set_outputs_dirty(seat);
 
-	wl_surface_set_buffer_scale(seat->cursor_surface, output->scale);
-	wl_surface_attach(seat->cursor_surface,
+	if (output->state->cursor_shape_manager) {
+		struct wp_cursor_shape_device_v1 *device =
+			wp_cursor_shape_manager_v1_get_pointer(
+				output->state->cursor_shape_manager, wl_pointer);
+		wp_cursor_shape_device_v1_set_shape(device, serial,
+			WP_CURSOR_SHAPE_DEVICE_V1_SHAPE_CROSSHAIR);
+		wp_cursor_shape_device_v1_destroy(device);
+	} else {
+		wl_surface_set_buffer_scale(seat->cursor_surface, output->scale);
+		wl_surface_attach(seat->cursor_surface,
 			wl_cursor_image_get_buffer(output->cursor_image), 0, 0);
-	wl_pointer_set_cursor(wl_pointer, serial, seat->cursor_surface,
+		wl_pointer_set_cursor(wl_pointer, serial, seat->cursor_surface,
 			output->cursor_image->hotspot_x / output->scale,
 			output->cursor_image->hotspot_y / output->scale);
-	wl_surface_commit(seat->cursor_surface);
+		wl_surface_commit(seat->cursor_surface);
+	}
 }
 
 static void pointer_handle_leave(void *data, struct wl_pointer *wl_pointer,
@@ -184,7 +198,7 @@ static void pointer_handle_motion(void *data, struct wl_pointer *wl_pointer,
 	case WL_POINTER_BUTTON_STATE_RELEASED:
 		seat_update_selection(seat);
 		break;
-	case WL_POINTER_BUTTON_STATE_PRESSED:;
+	case WL_POINTER_BUTTON_STATE_PRESSED:
 		handle_active_selection_motion(seat, &seat->pointer_selection);
 		break;
 	}
@@ -539,7 +553,9 @@ static void destroy_output(struct slurp_output *output) {
 	wl_list_remove(&output->link);
 	finish_buffer(&output->buffers[0]);
 	finish_buffer(&output->buffers[1]);
-	wl_cursor_theme_destroy(output->cursor_theme);
+	if (output->cursor_theme) {
+		wl_cursor_theme_destroy(output->cursor_theme);
+	}
 	zwlr_layer_surface_v1_destroy(output->layer_surface);
 	if (output->xdg_output) {
 		zxdg_output_v1_destroy(output->xdg_output);
@@ -570,6 +586,8 @@ static void send_frame(struct slurp_output *output) {
 	if (output->current_buffer == NULL) {
 		return;
 	}
+	output->current_buffer->busy = true;
+
 	cairo_identity_matrix(output->current_buffer->cairo);
 	cairo_scale(output->current_buffer->cairo, output->scale, output->scale);
 
@@ -676,6 +694,9 @@ static void handle_global(void *data, struct wl_registry *registry,
 	} else if (strcmp(interface, zxdg_output_manager_v1_interface.name) == 0) {
 		state->xdg_output_manager = wl_registry_bind(registry, name,
 			&zxdg_output_manager_v1_interface, 2);
+	} else if (strcmp(interface, wp_cursor_shape_manager_v1_interface.name) == 0) {
+		state->cursor_shape_manager = wl_registry_bind(registry, name,
+			&wp_cursor_shape_manager_v1_interface, 1);
 	}
 }
 
@@ -722,6 +743,7 @@ uint32_t parse_color(const char *color) {
 	return res;
 }
 
+
 enum slurp_label_anchor parse_label_anchor(const char *anchor) {
 	enum slurp_label_anchor label_anchor = ANCHOR_NONE;
 	if (strstr(anchor, "top") != NULL) {
@@ -742,24 +764,32 @@ enum slurp_label_anchor parse_label_anchor(const char *anchor) {
 	return label_anchor;
 }
 
-static void print_output_name(FILE *stream, const struct slurp_box *result, struct wl_list *outputs) {
+static struct slurp_output *output_from_box(const struct slurp_box *box, struct wl_list *outputs) {
 	struct slurp_output *output;
 	wl_list_for_each(output, outputs, link) {
-		// For now just use the top-left corner
 		struct slurp_box *geometry = &output->logical_geometry;
-		if (in_box(geometry, result->x, result->y)) {
-			if (geometry->label) {
-				fprintf(stream, "%s", geometry->label);
-				return;
-			}
-			break;
+		// For now just use the top-left corner
+		if (in_box(geometry, box->x, box->y)) {
+			return output;
+		}
+	}
+	return NULL;
+}
+
+static void print_output_name(FILE *stream, const struct slurp_box *result, struct wl_list *outputs) {
+	struct slurp_output *output = output_from_box(result, outputs);
+	if (output) {
+		struct slurp_box *geometry = &output->logical_geometry;
+		if (geometry->label) {
+			fprintf(stream, "%s", geometry->label);
+			return;
 		}
 	}
 	fprintf(stream, "<unknown>");
 }
 
-static void print_formatted_result(FILE *stream, const struct slurp_box *result, struct wl_list *outputs,
-		const char *format) {
+static void print_formatted_result(FILE *stream, struct slurp_state *state , const char *format) {
+	struct slurp_output *output = output_from_box(&state->result, &state->outputs);
 	for (size_t i = 0; format[i] != '\0'; i++) {
 		char c = format[i];
 		if (c == '%') {
@@ -768,24 +798,40 @@ static void print_formatted_result(FILE *stream, const struct slurp_box *result,
 			i++; // Skip the next character (x, y, w or h)
 			switch (next) {
 			case 'x':
-				fprintf(stream, "%d", result->x);
+				fprintf(stream, "%d", state->result.x);
 				continue;
 			case 'y':
-				fprintf(stream, "%d", result->y);
+				fprintf(stream, "%d", state->result.y);
 				continue;
 			case 'w':
-				fprintf(stream, "%d", result->width);
+				fprintf(stream, "%d", state->result.width);
 				continue;
 			case 'h':
-				fprintf(stream, "%d", result->height);
+				fprintf(stream, "%d", state->result.height);
+				continue;
+			case 'X':
+				assert(output);
+				fprintf(stream, "%d", state->result.x - output->logical_geometry.x);
+				continue;
+			case 'Y':
+				assert(output);
+				fprintf(stream, "%d", state->result.y - output->logical_geometry.y);
+				continue;
+			case 'W':
+				assert(output);
+				fprintf(stream, "%d", min(state->result.width, output->logical_geometry.x + output->logical_geometry.width - state->result.x));
+				continue;
+			case 'H':
+				assert(output);
+				fprintf(stream, "%d", min(state->result.height, output->logical_geometry.y + output->logical_geometry.height - state->result.y));
 				continue;
 			case 'l':
-				if (result->label) {
-					fprintf(stream, "%s", result->label);
+				if (state->result.label) {
+					fprintf(stream, "%s", state->result.label);
 				}
 				continue;
 			case 'o':
-				print_output_name(stream, result, outputs);
+				print_output_name(stream, &state->result, &state->outputs);
 				continue;
 			default:
 				// If no case was executed, revert i back - we don't need to
@@ -812,12 +858,47 @@ static void add_choice_box(struct slurp_state *state,
 	wl_list_insert(state->boxes.prev, &b->link);
 }
 
+static bool create_cursors(struct slurp_state *state) {
+	const char *cursor_theme = getenv("XCURSOR_THEME");
+	const char *cursor_size_str = getenv("XCURSOR_SIZE");
+	int cursor_size = 24;
+	if (cursor_size_str != NULL) {
+		char *end;
+		errno = 0;
+		cursor_size = strtol(cursor_size_str, &end, 10);
+		if (errno != 0 || cursor_size_str[0] == '\0' || end[0] != '\0') {
+			fprintf(stderr, "invalid XCURSOR_SIZE value\n");
+			return false;
+		}
+	}
+
+	struct slurp_output *output;
+	wl_list_for_each(output, &state->outputs, link) {
+		output->cursor_theme = wl_cursor_theme_load(cursor_theme,
+			cursor_size * output->scale, state->shm);
+		if (output->cursor_theme == NULL) {
+			fprintf(stderr, "failed to load cursor theme\n");
+			return false;
+		}
+		struct wl_cursor *cursor =
+			wl_cursor_theme_get_cursor(output->cursor_theme, "crosshair");
+		if (cursor == NULL) {
+			// Fallback
+			cursor =
+				wl_cursor_theme_get_cursor(output->cursor_theme, "left_ptr");
+		}
+		if (cursor == NULL) {
+			fprintf(stderr, "failed to load cursor\n");
+			return false;
+		}
+		output->cursor_image = cursor->images[0];
+	}
+
+	return true;
+}
+
 int main(int argc, char *argv[]) {
 	int status = EXIT_SUCCESS;
-
-	char *result_str = 0;
-	size_t length;
-	FILE *stream = open_memstream(&result_str, &length);
 
 	struct slurp_state state = {
 		.colors = {
@@ -973,19 +1054,6 @@ int main(int argc, char *argv[]) {
 		return EXIT_FAILURE;
 	}
 
-	const char *cursor_theme = getenv("XCURSOR_THEME");
-	const char *cursor_size_str = getenv("XCURSOR_SIZE");
-	int cursor_size = 24;
-	if (cursor_size_str != NULL) {
-		char *end;
-		errno = 0;
-		cursor_size = strtol(cursor_size_str, &end, 10);
-		if (errno != 0 || cursor_size_str[0] == '\0' || end[0] != '\0') {
-			fprintf(stderr, "invalid XCURSOR_SIZE value\n");
-			return EXIT_FAILURE;
-		}
-	}
-
 	struct slurp_output *output;
 	wl_list_for_each(output, &state.outputs, link) {
 		output->surface = wl_compositor_create_surface(state.compositor);
@@ -1017,28 +1085,13 @@ int main(int argc, char *argv[]) {
 		zwlr_layer_surface_v1_set_keyboard_interactivity(output->layer_surface, true);
 		zwlr_layer_surface_v1_set_exclusive_zone(output->layer_surface, -1);
 		wl_surface_commit(output->surface);
-
-		output->cursor_theme = wl_cursor_theme_load(cursor_theme,
-			cursor_size * output->scale, state.shm);
-		if (output->cursor_theme == NULL) {
-			fprintf(stderr, "failed to load cursor theme\n");
-			return EXIT_FAILURE;
-		}
-		struct wl_cursor *cursor =
-			wl_cursor_theme_get_cursor(output->cursor_theme, "crosshair");
-		if (cursor == NULL) {
-			// Fallback
-			cursor =
-				wl_cursor_theme_get_cursor(output->cursor_theme, "left_ptr");
-		}
-		if (cursor == NULL) {
-			fprintf(stderr, "failed to load cursor\n");
-			return EXIT_FAILURE;
-		}
-		output->cursor_image = cursor->images[0];
 	}
 	// second roundtrip for xdg-output
 	wl_display_roundtrip(state.display);
+
+	if (!state.cursor_shape_manager && !create_cursors(&state)) {
+		return EXIT_FAILURE;
+	}
 
 	if (output_boxes) {
 		struct slurp_output *box_output;
@@ -1058,11 +1111,14 @@ int main(int argc, char *argv[]) {
 		// This space intentionally left blank
 	}
 
+	char *result_str = 0;
+	size_t length;
 	if (state.result.width == 0 && state.result.height == 0) {
 		fprintf(stderr, "selection cancelled\n");
 		status = EXIT_FAILURE;
 	} else {
-		print_formatted_result(stream, &state.result, &state.outputs, format);
+		FILE *stream = open_memstream(&result_str, &length);
+		print_formatted_result(stream, &state, format);
 		fclose(stream);
 	}
 
@@ -1081,6 +1137,9 @@ int main(int argc, char *argv[]) {
 	zwlr_layer_shell_v1_destroy(state.layer_shell);
 	if (state.xdg_output_manager != NULL) {
 		zxdg_output_manager_v1_destroy(state.xdg_output_manager);
+	}
+	if (state.cursor_shape_manager != NULL) {
+		wp_cursor_shape_manager_v1_destroy(state.cursor_shape_manager);
 	}
 	wl_compositor_destroy(state.compositor);
 	wl_shm_destroy(state.shm);
