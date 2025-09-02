@@ -1,10 +1,15 @@
 #include <cairo/cairo.h>
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 
 #include "pool-buffer.h"
 #include "render.h"
 #include "slurp.h"
+
+#define LABEL_BOX_PADDING 10
+#define LABEL_HORIZONTAL_MARGING 10
+#define LABEL_VERTICAL_MARGING 20
 
 static void set_source_u32(cairo_t *cairo, uint32_t color) {
 	cairo_set_source_rgba(cairo, (color >> (3 * 8) & 0xFF) / 255.0,
@@ -17,6 +22,45 @@ static void draw_rect(cairo_t *cairo, struct slurp_box *box, uint32_t color) {
 	set_source_u32(cairo, color);
 	cairo_rectangle(cairo, box->x, box->y,
 			box->width, box->height);
+}
+
+static void draw_rect_label(cairo_t *cairo, struct slurp_box *box, enum slurp_label_anchor anchor,
+		uint32_t text_color, uint32_t background_color, const char *font_family, const char *text) {
+	if (anchor == ANCHOR_NONE)
+		return;
+	cairo_select_font_face(cairo, font_family,
+						 CAIRO_FONT_SLANT_NORMAL,
+						 CAIRO_FONT_WEIGHT_NORMAL);
+	cairo_set_font_size(cairo, 20);
+	cairo_text_extents_t extents;
+	cairo_text_extents(cairo, text, &extents);
+	struct slurp_box labelbox = { 0 };
+	labelbox.width = ceil(extents.width) + 2*LABEL_BOX_PADDING;
+	labelbox.height = ceil(extents.height) + 2*LABEL_BOX_PADDING;
+	labelbox.x = box->x + (box->width - labelbox.width) / 2;
+	labelbox.y = box->y + (box->height - labelbox.height) / 2;
+
+	if (anchor & ANCHOR_TOP && anchor & ANCHOR_BOTTOM) {
+		// Nothing to do
+	} else if (anchor & ANCHOR_TOP) {
+		labelbox.y = box->y + LABEL_VERTICAL_MARGING;
+	} else if (anchor & ANCHOR_BOTTOM) {
+		labelbox.y = box->y + box->height - LABEL_VERTICAL_MARGING - labelbox.height;
+	}
+	if (anchor & ANCHOR_LEFT && anchor & ANCHOR_RIGHT) {
+		// Nothing to do
+	} else if (anchor & ANCHOR_LEFT) {
+		labelbox.x = box->x + LABEL_HORIZONTAL_MARGING;
+	} else if (anchor & ANCHOR_RIGHT) {
+		labelbox.x = box->x + box->width - LABEL_HORIZONTAL_MARGING - labelbox.width;
+	}
+
+	draw_rect(cairo, &labelbox, background_color);
+	cairo_fill(cairo);
+	set_source_u32(cairo, text_color);
+	cairo_move_to(cairo, labelbox.x + LABEL_BOX_PADDING,
+					labelbox.y + LABEL_BOX_PADDING + ceil(extents.height));
+	cairo_show_text(cairo, text);
 }
 
 static void box_layout_to_output(struct slurp_box *box, struct slurp_output *output) {
@@ -43,6 +87,9 @@ void render(struct slurp_output *output) {
 			box_layout_to_output(&b, output);
 			draw_rect(cairo, &b, state->colors.choice);
 			cairo_fill(cairo);
+			if (b.label)
+				draw_rect_label(cairo, &b, state->label_anchor,
+						state->colors.label_text, state->colors.label_background, state->font_family, b.label);
 		}
 	}
 
@@ -64,6 +111,9 @@ void render(struct slurp_output *output) {
 
 		draw_rect(cairo, &b, state->colors.selection);
 		cairo_fill(cairo);
+		if (b.label)
+				draw_rect_label(cairo, &b, state->label_anchor,
+						state->colors.label_text, state->colors.label_background, state->font_family, b.label);
 
 		// Draw border
 		cairo_set_line_width(cairo, state->border_weight);
