@@ -24,6 +24,7 @@ executable(
 	'slurp',
 	[
 		'main.c',
+		'lock.c',
 		'pool-buffer.c',
 		'render.c',
 		protos_src,
