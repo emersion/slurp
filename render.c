@@ -19,11 +19,6 @@ static void draw_rect(cairo_t *cairo, struct slurp_box *box, uint32_t color) {
 			box->width, box->height);
 }
 
-static void box_layout_to_output(struct slurp_box *box, struct slurp_output *output) {
-	box->x -= output->logical_geometry.x;
-	box->y -= output->logical_geometry.y;
-}
-
 void render(struct slurp_output *output) {
 	struct slurp_state *state = output->state;
 	struct pool_buffer *buffer = output->current_buffer;
@@ -39,9 +34,7 @@ void render(struct slurp_output *output) {
 	wl_list_for_each(choice_box, &state->boxes, link) {
 		if (box_intersect(&output->logical_geometry,
 					choice_box)) {
-			struct slurp_box b = *choice_box;
-			box_layout_to_output(&b, output);
-			draw_rect(cairo, &b, state->colors.choice);
+			draw_rect(cairo, choice_box, state->colors.choice);
 			cairo_fill(cairo);
 		}
 	}
@@ -51,6 +44,18 @@ void render(struct slurp_output *output) {
 		struct slurp_selection *current_selection =
 			slurp_seat_current_selection(seat);
 
+		if (!current_selection->has_selection && state->crosshairs) {
+			struct slurp_box *output_box = &output->logical_geometry;
+			if (in_box(output_box, current_selection->x, current_selection->y)) {
+
+				set_source_u32(cairo, state->colors.border);
+				cairo_rectangle(cairo, output_box->x, current_selection->y, output->logical_geometry.width, 1);
+				cairo_fill(cairo);
+				cairo_rectangle(cairo, current_selection->x, output->logical_geometry.y, 1, output->logical_geometry.height);
+				cairo_fill(cairo);
+			}
+		}
+
 		if (!current_selection->has_selection) {
 			continue;
 		}
@@ -59,15 +64,14 @@ void render(struct slurp_output *output) {
 			&current_selection->selection)) {
 			continue;
 		}
-		struct slurp_box b = current_selection->selection;
-		box_layout_to_output(&b, output);
+		struct slurp_box *sel_box = &current_selection->selection;
 
-		draw_rect(cairo, &b, state->colors.selection);
+		draw_rect(cairo, sel_box, state->colors.selection);
 		cairo_fill(cairo);
 
 		// Draw border
 		cairo_set_line_width(cairo, state->border_weight);
-		draw_rect(cairo, &b, state->colors.border);
+		draw_rect(cairo, sel_box, state->colors.border);
 		cairo_stroke(cairo);
 
 		if (state->display_dimensions) {
@@ -79,9 +83,9 @@ void render(struct slurp_output *output) {
 			// buffer of 12 can hold selections up to 99999x99999
 			char dimensions[12];
 			snprintf(dimensions, sizeof(dimensions), "%ix%i",
-				 b.width, b.height);
-			cairo_move_to(cairo, b.x + b.width + 10,
-				      b.y + b.height + 20);
+				 sel_box->width, sel_box->height);
+			cairo_move_to(cairo, sel_box->x + sel_box->width + 10,
+				      sel_box->y + sel_box->height + 20);
 			cairo_show_text(cairo, dimensions);
 		}
 	}
