@@ -13,6 +13,7 @@
 
 #include "slurp.h"
 #include "render.h"
+#include "lock.h"
 
 #define BG_COLOR 0xFFFFFF40
 #define BORDER_COLOR 0x000000FF
@@ -966,6 +967,11 @@ int main(int argc, char *argv[]) {
 
 	if (state.single_point && state.restrict_selection) {
 		fprintf(stderr, "-p and -r cannot be used together\n");
+		return EXIT_FAILURE;
+	}
+
+	if (!acquire_lock()) {
+		// acquire_lock prints an appropriate error message itself
 		return EXIT_FAILURE;
 	}
 
