@@ -1,5 +1,4 @@
 #include <fcntl.h>
-#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/file.h>
@@ -41,16 +40,14 @@ bool acquire_lock() {
 		return false;
 	}
 	// Open the lock file for write, creating with user read/write if necessary
-	int fd = open(lockfile, O_WRONLY|O_CREAT, 00600);
+	int fd = open(lockfile, O_WRONLY | O_CREAT, 00600);
 	if (fd == -1) {
 		fprintf(stderr, "failed to open lock file\n");
 		return false;
 	}
-	if (flock(fd, LOCK_EX|LOCK_NB)) {
+	if (flock(fd, LOCK_EX | LOCK_NB)) {
 		fprintf(stderr, "another slurp process is running for this wayland session\n");
 		return false;
 	}
 	return true;
 }
-
-
