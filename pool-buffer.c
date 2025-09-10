@@ -16,7 +16,7 @@ static void randname(char *buf) {
 	clock_gettime(CLOCK_REALTIME, &ts);
 	long r = ts.tv_nsec;
 	for (int i = 0; i < 6; ++i) {
-		buf[i] = 'A'+(r&15)+(r&16)*2;
+		buf[i] = 'A' + (r & 15) + (r & 16) * 2;
 		r >>= 5;
 	}
 }
@@ -86,7 +86,7 @@ static struct pool_buffer *create_buffer(struct wl_shm *shm,
 
 		struct wl_shm_pool *pool = wl_shm_create_pool(shm, fd, size);
 		buf->buffer =
-			wl_shm_pool_create_buffer(pool, 0, width, height, stride, wl_fmt);
+				wl_shm_pool_create_buffer(pool, 0, width, height, stride, wl_fmt);
 		wl_buffer_add_listener(buf->buffer, &buffer_listener, buf);
 		wl_shm_pool_destroy(pool);
 
@@ -98,7 +98,7 @@ static struct pool_buffer *create_buffer(struct wl_shm *shm,
 	buf->width = width;
 	buf->height = height;
 	buf->surface = cairo_image_surface_create_for_data(data, cairo_fmt, width,
-		height, stride);
+			height, stride);
 	buf->cairo = cairo_create(buf->surface);
 	return buf;
 }

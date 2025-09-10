@@ -2,15 +2,15 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "slurp.h"
 #include "pool-buffer.h"
 #include "render.h"
-#include "slurp.h"
 
 static void set_source_u32(cairo_t *cairo, uint32_t color) {
 	cairo_set_source_rgba(cairo, (color >> (3 * 8) & 0xFF) / 255.0,
-		(color >> (2 * 8) & 0xFF) / 255.0,
-		(color >> (1 * 8) & 0xFF) / 255.0,
-		(color >> (0 * 8) & 0xFF) / 255.0);
+			(color >> (2 * 8) & 0xFF) / 255.0,
+			(color >> (1 * 8) & 0xFF) / 255.0,
+			(color >> (0 * 8) & 0xFF) / 255.0);
 }
 
 static void draw_rect(cairo_t *cairo, struct slurp_box *box, uint32_t color) {
@@ -42,7 +42,7 @@ void render(struct slurp_output *output) {
 	struct slurp_seat *seat;
 	wl_list_for_each(seat, &state->seats, link) {
 		struct slurp_selection *current_selection =
-			slurp_seat_current_selection(seat);
+				slurp_seat_current_selection(seat);
 
 		if (!current_selection->has_selection && state->crosshairs) {
 			struct slurp_box *output_box = &output->logical_geometry;
@@ -61,7 +61,7 @@ void render(struct slurp_output *output) {
 		}
 
 		if (!box_intersect(&output->logical_geometry,
-			&current_selection->selection)) {
+					&current_selection->selection)) {
 			continue;
 		}
 		struct slurp_box *sel_box = &current_selection->selection;
@@ -76,16 +76,16 @@ void render(struct slurp_output *output) {
 
 		if (state->display_dimensions) {
 			cairo_select_font_face(cairo, state->font_family,
-					       CAIRO_FONT_SLANT_NORMAL,
-					       CAIRO_FONT_WEIGHT_NORMAL);
+					CAIRO_FONT_SLANT_NORMAL,
+					CAIRO_FONT_WEIGHT_NORMAL);
 			cairo_set_font_size(cairo, 14);
 			set_source_u32(cairo, state->colors.border);
 			// buffer of 12 can hold selections up to 99999x99999
 			char dimensions[12];
 			snprintf(dimensions, sizeof(dimensions), "%ix%i",
-				 sel_box->width, sel_box->height);
+					sel_box->width, sel_box->height);
 			cairo_move_to(cairo, sel_box->x + sel_box->width + 10,
-				      sel_box->y + sel_box->height + 20);
+					sel_box->y + sel_box->height + 20);
 			cairo_show_text(cairo, dimensions);
 		}
 	}
