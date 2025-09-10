@@ -2,6 +2,7 @@
 
 #include <assert.h>
 #include <errno.h>
+#include <linux/input-event-codes.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -9,11 +10,10 @@
 #include <unistd.h>
 #include <wayland-cursor.h>
 #include <xkbcommon/xkbcommon.h>
-#include <linux/input-event-codes.h>
 
 #include "slurp.h"
-#include "render.h"
 #include "lock.h"
+#include "render.h"
 
 #define BG_COLOR 0xFFFFFF40
 #define BORDER_COLOR 0x000000FF
@@ -35,13 +35,13 @@ static int min(int a, int b) {
 }
 
 static struct slurp_output *output_from_surface(struct slurp_state *state,
-	struct wl_surface *surface);
+		struct wl_surface *surface);
 
 static void move_seat(struct slurp_seat *seat, wl_fixed_t surface_x,
 		wl_fixed_t surface_y,
 		struct slurp_selection *current_selection) {
 	int x = wl_fixed_to_int(surface_x) +
-		current_selection->current_output->logical_geometry.x;
+			current_selection->current_output->logical_geometry.x;
 	int y = wl_fixed_to_int(surface_y) + current_selection->current_output->logical_geometry.y;
 
 	if (seat->state->edit_anchor) {
@@ -60,11 +60,9 @@ static void seat_update_selection(struct slurp_seat *seat) {
 	struct slurp_box *box;
 	wl_list_for_each(box, &seat->state->boxes, link) {
 		if (in_box(box, seat->pointer_selection.x,
-			   seat->pointer_selection.y)) {
+					seat->pointer_selection.y)) {
 			if (seat->pointer_selection.has_selection &&
-				box_size(
-					&seat->pointer_selection.selection) <
-					box_size(box)) {
+					box_size(&seat->pointer_selection.selection) < box_size(box)) {
 				continue;
 			}
 			seat->pointer_selection.selection = *box;
@@ -87,7 +85,7 @@ static void seat_set_outputs_dirty(struct slurp_seat *seat) {
 }
 
 static void handle_active_selection_motion(struct slurp_seat *seat, struct slurp_selection *current_selection) {
-	if(seat->state->restrict_selection){
+	if (seat->state->restrict_selection) {
 		return;
 	}
 
@@ -144,18 +142,18 @@ static void pointer_handle_enter(void *data, struct wl_pointer *wl_pointer,
 
 	if (output->state->cursor_shape_manager) {
 		struct wp_cursor_shape_device_v1 *device =
-			wp_cursor_shape_manager_v1_get_pointer(
-				output->state->cursor_shape_manager, wl_pointer);
+				wp_cursor_shape_manager_v1_get_pointer(
+						output->state->cursor_shape_manager, wl_pointer);
 		wp_cursor_shape_device_v1_set_shape(device, serial,
-			WP_CURSOR_SHAPE_DEVICE_V1_SHAPE_CROSSHAIR);
+				WP_CURSOR_SHAPE_DEVICE_V1_SHAPE_CROSSHAIR);
 		wp_cursor_shape_device_v1_destroy(device);
 	} else {
 		wl_surface_set_buffer_scale(seat->cursor_surface, output->scale);
 		wl_surface_attach(seat->cursor_surface,
-			wl_cursor_image_get_buffer(output->cursor_image), 0, 0);
+				wl_cursor_image_get_buffer(output->cursor_image), 0, 0);
 		wl_pointer_set_cursor(wl_pointer, serial, seat->cursor_surface,
-			output->cursor_image->hotspot_x / output->scale,
-			output->cursor_image->hotspot_y / output->scale);
+				output->cursor_image->hotspot_x / output->scale,
+				output->cursor_image->hotspot_y / output->scale);
 		wl_surface_commit(seat->cursor_surface);
 	}
 }
@@ -195,7 +193,7 @@ static void pointer_handle_motion(void *data, struct wl_pointer *wl_pointer,
 }
 
 static void handle_selection_start(struct slurp_seat *seat,
-				   struct slurp_selection *current_selection) {
+		struct slurp_selection *current_selection) {
 	struct slurp_state *state = seat->state;
 
 	if (state->single_point) {
@@ -215,7 +213,7 @@ static void handle_selection_start(struct slurp_seat *seat,
 }
 
 static void handle_selection_end(struct slurp_seat *seat,
-				 struct slurp_selection *current_selection) {
+		struct slurp_selection *current_selection) {
 	struct slurp_state *state = seat->state;
 	if (state->single_point || state->restrict_selection) {
 		return;
@@ -269,10 +267,10 @@ static void keyboard_handle_keymap(void *data, struct wl_keyboard *wl_keyboard,
 			exit(EXIT_FAILURE);
 		}
 		seat->xkb_keymap =
-			xkb_keymap_new_from_buffer(seat->state->xkb_context,
-					buffer, size - 1,
-					XKB_KEYMAP_FORMAT_TEXT_V1,
-					XKB_KEYMAP_COMPILE_NO_FLAGS);
+				xkb_keymap_new_from_buffer(seat->state->xkb_context,
+						buffer, size - 1,
+						XKB_KEYMAP_FORMAT_TEXT_V1,
+						XKB_KEYMAP_COMPILE_NO_FLAGS);
 		munmap(buffer, size - 1);
 		close(fd);
 		break;
@@ -336,7 +334,6 @@ static void keyboard_handle_key(void *data, struct wl_keyboard *wl_keyboard,
 		}
 		break;
 	}
-
 }
 
 static void keyboard_handle_modifiers(void *data, struct wl_keyboard *wl_keyboard,
@@ -367,7 +364,7 @@ static void touch_handle_down(void *data, struct wl_touch *touch,
 	if (seat->touch_id == TOUCH_ID_EMPTY) {
 		seat->touch_id = id;
 		seat->touch_selection.current_output =
-			output_from_surface(seat->state, surface);
+				output_from_surface(seat->state, surface);
 		move_seat(seat, x, y, &seat->touch_selection);
 		handle_selection_start(seat, &seat->touch_selection);
 	}
@@ -573,7 +570,7 @@ static void send_frame(struct slurp_output *output) {
 	int32_t buffer_height = output->height * output->scale;
 
 	output->current_buffer = get_next_buffer(state->shm, output->buffers,
-		buffer_width, buffer_height);
+			buffer_width, buffer_height);
 	if (output->current_buffer == NULL) {
 		return;
 	}
@@ -588,7 +585,7 @@ static void send_frame(struct slurp_output *output) {
 	// Schedule a frame in case the output becomes dirty again
 	output->frame_callback = wl_surface_frame(output->surface);
 	wl_callback_add_listener(output->frame_callback,
-		&output_frame_listener, output);
+			&output_frame_listener, output);
 
 	wl_surface_attach(output->surface, output->current_buffer->buffer, 0, 0);
 	wl_surface_damage(output->surface, 0, 0, output->width, output->height);
@@ -621,7 +618,7 @@ static void set_output_dirty(struct slurp_output *output) {
 
 	output->frame_callback = wl_surface_frame(output->surface);
 	wl_callback_add_listener(output->frame_callback,
-		&output_frame_listener, output);
+			&output_frame_listener, output);
 	wl_surface_commit(output->surface);
 }
 
@@ -635,7 +632,6 @@ static struct slurp_output *output_from_surface(struct slurp_state *state,
 	}
 	return NULL;
 }
-
 
 static void layer_surface_handle_configure(void *data,
 		struct zwlr_layer_surface_v1 *surface,
@@ -661,34 +657,33 @@ static const struct zwlr_layer_surface_v1_listener layer_surface_listener = {
 	.closed = layer_surface_handle_closed,
 };
 
-
 static void handle_global(void *data, struct wl_registry *registry,
 		uint32_t name, const char *interface, uint32_t version) {
 	struct slurp_state *state = data;
 
 	if (strcmp(interface, wl_compositor_interface.name) == 0) {
 		state->compositor = wl_registry_bind(registry, name,
-			&wl_compositor_interface, 4);
+				&wl_compositor_interface, 4);
 	} else if (strcmp(interface, wl_shm_interface.name) == 0) {
 		state->shm = wl_registry_bind(registry, name,
-			&wl_shm_interface, 1);
+				&wl_shm_interface, 1);
 	} else if (strcmp(interface, zwlr_layer_shell_v1_interface.name) == 0) {
 		state->layer_shell = wl_registry_bind(registry, name,
-			&zwlr_layer_shell_v1_interface, 1);
+				&zwlr_layer_shell_v1_interface, 1);
 	} else if (strcmp(interface, wl_seat_interface.name) == 0) {
 		struct wl_seat *wl_seat =
-			wl_registry_bind(registry, name, &wl_seat_interface, 1);
+				wl_registry_bind(registry, name, &wl_seat_interface, 1);
 		create_seat(state, wl_seat);
 	} else if (strcmp(interface, wl_output_interface.name) == 0) {
 		struct wl_output *wl_output =
-			wl_registry_bind(registry, name, &wl_output_interface, 3);
+				wl_registry_bind(registry, name, &wl_output_interface, 3);
 		create_output(state, wl_output);
 	} else if (strcmp(interface, zxdg_output_manager_v1_interface.name) == 0) {
 		state->xdg_output_manager = wl_registry_bind(registry, name,
-			&zxdg_output_manager_v1_interface, 2);
+				&zxdg_output_manager_v1_interface, 2);
 	} else if (strcmp(interface, wp_cursor_shape_manager_v1_interface.name) == 0) {
 		state->cursor_shape_manager = wl_registry_bind(registry, name,
-			&wp_cursor_shape_manager_v1_interface, 1);
+				&wp_cursor_shape_manager_v1_interface, 1);
 	}
 }
 
@@ -698,22 +693,22 @@ static const struct wl_registry_listener registry_listener = {
 };
 
 static const char usage[] =
-	"Usage: slurp [options...]\n"
-	"\n"
-	"  -h           Show help message and quit.\n"
-	"  -d           Display dimensions of selection.\n"
-	"  -b #rrggbbaa Set background color.\n"
-	"  -c #rrggbbaa Set border color.\n"
-	"  -s #rrggbbaa Set selection color.\n"
-	"  -B #rrggbbaa Set option box color.\n"
-	"  -F s         Set the font family for the dimensions.\n"
-	"  -w n         Set border weight.\n"
-	"  -f s         Set output format.\n"
-	"  -o           Select a display output.\n"
-	"  -p           Select a single point.\n"
-	"  -r           Restrict selection to predefined boxes.\n"
-	"  -a w:h       Force aspect ratio.\n"
-	"  -x           Display crosshairs across active display output.\n";
+		"Usage: slurp [options...]\n"
+		"\n"
+		"  -h           Show help message and quit.\n"
+		"  -d           Display dimensions of selection.\n"
+		"  -b #rrggbbaa Set background color.\n"
+		"  -c #rrggbbaa Set border color.\n"
+		"  -s #rrggbbaa Set selection color.\n"
+		"  -B #rrggbbaa Set option box color.\n"
+		"  -F s         Set the font family for the dimensions.\n"
+		"  -w n         Set border weight.\n"
+		"  -f s         Set output format.\n"
+		"  -o           Select a display output.\n"
+		"  -p           Select a single point.\n"
+		"  -r           Restrict selection to predefined boxes.\n"
+		"  -a w:h       Force aspect ratio.\n"
+		"  -x           Display crosshairs across active display output.\n";
 
 uint32_t parse_color(const char *color) {
 	if (color[0] == '#') {
@@ -722,8 +717,10 @@ uint32_t parse_color(const char *color) {
 
 	int len = strlen(color);
 	if (len != 6 && len != 8) {
-		fprintf(stderr, "Invalid color %s, "
-				"defaulting to color 0xFFFFFFFF\n", color);
+		fprintf(stderr,
+				"Invalid color %s, "
+				"defaulting to color 0xFFFFFFFF\n",
+				color);
 		return 0xFFFFFFFF;
 	}
 	uint32_t res = (uint32_t)strtoul(color, NULL, 16);
@@ -757,7 +754,7 @@ static void print_output_name(FILE *stream, const struct slurp_box *result, stru
 	fprintf(stream, "<unknown>");
 }
 
-static void print_formatted_result(FILE *stream, struct slurp_state *state , const char *format) {
+static void print_formatted_result(FILE *stream, struct slurp_state *state, const char *format) {
 	struct slurp_output *output = output_from_box(&state->result, &state->outputs);
 	for (size_t i = 0; format[i] != '\0'; i++) {
 		char c = format[i];
@@ -844,17 +841,17 @@ static bool create_cursors(struct slurp_state *state) {
 	struct slurp_output *output;
 	wl_list_for_each(output, &state->outputs, link) {
 		output->cursor_theme = wl_cursor_theme_load(cursor_theme,
-			cursor_size * output->scale, state->shm);
+				cursor_size * output->scale, state->shm);
 		if (output->cursor_theme == NULL) {
 			fprintf(stderr, "failed to load cursor theme\n");
 			return false;
 		}
 		struct wl_cursor *cursor =
-			wl_cursor_theme_get_cursor(output->cursor_theme, "crosshair");
+				wl_cursor_theme_get_cursor(output->cursor_theme, "crosshair");
 		if (cursor == NULL) {
 			// Fallback
 			cursor =
-				wl_cursor_theme_get_cursor(output->cursor_theme, "left_ptr");
+					wl_cursor_theme_get_cursor(output->cursor_theme, "left_ptr");
 		}
 		if (cursor == NULL) {
 			fprintf(stderr, "failed to load cursor\n");
@@ -882,7 +879,7 @@ int main(int argc, char *argv[]) {
 		.resizing_selection = false,
 		.fixed_aspect_ratio = false,
 		.aspect_ratio = 0,
-		.font_family = FONT_FAMILY
+		.font_family = FONT_FAMILY,
 	};
 
 	int opt;
@@ -944,7 +941,7 @@ int main(int argc, char *argv[]) {
 				return EXIT_FAILURE;
 			}
 			state.fixed_aspect_ratio = true;
-			state.aspect_ratio = (double) h / w;
+			state.aspect_ratio = (double)h / w;
 			break;
 		case 'x':
 			state.crosshairs = true;
@@ -972,7 +969,7 @@ int main(int argc, char *argv[]) {
 		while (getline(&line, &line_size, stdin) >= 0) {
 			struct slurp_box in_box = {0};
 			if (sscanf(line, "%d,%d %dx%d %m[^\n]", &in_box.x, &in_box.y,
-					&in_box.width, &in_box.height, &in_box.label) < 4) {
+						&in_box.width, &in_box.height, &in_box.label) < 4) {
 				fprintf(stderr, "invalid box format: %s\n", line);
 				return EXIT_FAILURE;
 			}
@@ -1012,8 +1009,9 @@ int main(int argc, char *argv[]) {
 		return EXIT_FAILURE;
 	}
 	if (state.xdg_output_manager == NULL) {
-		fprintf(stderr, "compositor doesn't support xdg-output. "
-			"Guessing geometry from physical output size.\n");
+		fprintf(stderr,
+				"compositor doesn't support xdg-output. "
+				"Guessing geometry from physical output size.\n");
 	}
 	if (wl_list_empty(&state.outputs)) {
 		fprintf(stderr, "no wl_output\n");
@@ -1026,16 +1024,16 @@ int main(int argc, char *argv[]) {
 		// TODO: wl_surface_add_listener(output->surface, &surface_listener, output);
 
 		output->layer_surface = zwlr_layer_shell_v1_get_layer_surface(
-			state.layer_shell, output->surface, output->wl_output,
-			ZWLR_LAYER_SHELL_V1_LAYER_OVERLAY, "selection");
+				state.layer_shell, output->surface, output->wl_output,
+				ZWLR_LAYER_SHELL_V1_LAYER_OVERLAY, "selection");
 		zwlr_layer_surface_v1_add_listener(output->layer_surface,
-		  &layer_surface_listener, output);
+				&layer_surface_listener, output);
 
 		if (state.xdg_output_manager) {
 			output->xdg_output = zxdg_output_manager_v1_get_xdg_output(
-				state.xdg_output_manager, output->wl_output);
+					state.xdg_output_manager, output->wl_output);
 			zxdg_output_v1_add_listener(output->xdg_output,
-				&xdg_output_listener, output);
+					&xdg_output_listener, output);
 		} else {
 			// guess
 			output->logical_geometry = output->geometry;
@@ -1044,10 +1042,10 @@ int main(int argc, char *argv[]) {
 		}
 
 		zwlr_layer_surface_v1_set_anchor(output->layer_surface,
-			ZWLR_LAYER_SURFACE_V1_ANCHOR_TOP |
-			ZWLR_LAYER_SURFACE_V1_ANCHOR_LEFT |
-			ZWLR_LAYER_SURFACE_V1_ANCHOR_RIGHT |
-			ZWLR_LAYER_SURFACE_V1_ANCHOR_BOTTOM);
+				ZWLR_LAYER_SURFACE_V1_ANCHOR_TOP |
+						ZWLR_LAYER_SURFACE_V1_ANCHOR_LEFT |
+						ZWLR_LAYER_SURFACE_V1_ANCHOR_RIGHT |
+						ZWLR_LAYER_SURFACE_V1_ANCHOR_BOTTOM);
 		zwlr_layer_surface_v1_set_keyboard_interactivity(output->layer_surface, true);
 		zwlr_layer_surface_v1_set_exclusive_zone(output->layer_surface, -1);
 		wl_surface_commit(output->surface);
@@ -1069,7 +1067,7 @@ int main(int argc, char *argv[]) {
 	struct slurp_seat *seat;
 	wl_list_for_each(seat, &state.seats, link) {
 		seat->cursor_surface =
-			wl_compositor_create_surface(state.compositor);
+				wl_compositor_create_surface(state.compositor);
 	}
 
 	state.running = true;
