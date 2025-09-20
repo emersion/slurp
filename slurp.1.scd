@@ -127,6 +127,8 @@ ratio to 1:1 while shift is held down, releasing it restores the un-constrained
 aspect ratio. *Note:* This behavior may change in the future depending on
 feedback.
 
+*Control*	Experimental. The selection will expands outwards from the starting position (mirror mode).
+
 
 # AUTHORS
 

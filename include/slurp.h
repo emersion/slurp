@@ -16,6 +16,7 @@
 struct slurp_selection {
   struct slurp_output *current_output;
   int32_t x, y;
+  int32_t start_x, start_y;
   int32_t anchor_x, anchor_y;
   struct slurp_box selection;
   bool has_selection;
@@ -55,6 +56,7 @@ struct slurp_state {
   struct wl_list boxes; // slurp_box::link
   bool fixed_aspect_ratio;
   double aspect_ratio; // h / w
+  bool mirror_mode;
 
   struct slurp_box result;
 };
