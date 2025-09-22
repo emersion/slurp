@@ -123,8 +123,8 @@ static void handle_active_selection_motion(struct slurp_seat *seat, struct slurp
     if (seat->state->mirror_mode) {
         int32_t delta_x = width / 2;
         int32_t delta_y = height / 2;
-        anchor_x = start_x - delta_x;
-        anchor_y = start_y - delta_y;
+        current_selection->anchor_x = anchor_x = start_x - delta_x;
+        current_selection->anchor_y = anchor_y = start_y - delta_y;
     }
 
 	current_selection->selection.x = dist_x > 0 || seat->state->mirror_mode ? anchor_x : anchor_x - (width - 1);
@@ -349,6 +349,9 @@ static void keyboard_handle_key(void *data, struct wl_keyboard *wl_keyboard,
 		case XKB_KEY_Control_R:
             state->mirror_mode = true;
             if (state->resizing_selection) {
+                struct slurp_selection *current = slurp_seat_current_selection(seat);
+                current->start_x = current->anchor_x + round(current->selection.width  / 2);
+                current->start_y = current->anchor_y + round(current->selection.height / 2);
                 recompute_selection(seat);
             }
             break;
