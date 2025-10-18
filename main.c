@@ -586,6 +586,9 @@ static void send_frame(struct slurp_output *output) {
 	render(output);
 
 	// Schedule a frame in case the output becomes dirty again
+	if (output->frame_callback) {
+		wl_callback_destroy(output->frame_callback);
+	}
 	output->frame_callback = wl_surface_frame(output->surface);
 	wl_callback_add_listener(output->frame_callback,
 		&output_frame_listener, output);
