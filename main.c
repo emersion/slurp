@@ -222,8 +222,20 @@ static void handle_selection_end(struct slurp_seat *seat,
 	}
 	if (current_selection->has_selection) {
 		state->result = current_selection->selection;
+	} else {
+		state->result.x = current_selection->x;
+		state->result.y = current_selection->y;
+		state->result.width = state->result.height = 1;
 	}
 	state->resizing_selection = false;
+	state->running = false;
+}
+
+static void handle_selection_cancelled(struct slurp_seat *seat) {
+	struct slurp_state *state = seat->state;
+	seat->pointer_selection.has_selection = false;
+	seat->touch_selection.has_selection = false;
+	state->edit_anchor = false;
 	state->running = false;
 }
 
@@ -236,13 +248,19 @@ static void pointer_handle_button(void *data, struct wl_pointer *wl_pointer,
 	}
 
 	seat->button_state = button_state;
-
-	switch (button_state) {
-	case WL_POINTER_BUTTON_STATE_PRESSED:
-		handle_selection_start(seat, &seat->pointer_selection);
+	switch (button) {
+	case BTN_LEFT:
+		switch (button_state) {
+		case WL_POINTER_BUTTON_STATE_PRESSED:
+			handle_selection_start(seat, &seat->pointer_selection);
+			break;
+		case WL_POINTER_BUTTON_STATE_RELEASED:
+			handle_selection_end(seat, &seat->pointer_selection);
+			break;
+		}
 		break;
-	case WL_POINTER_BUTTON_STATE_RELEASED:
-		handle_selection_end(seat, &seat->pointer_selection);
+	default: //other mouse buttons cancel the selection
+		handle_selection_cancelled(seat);
 		break;
 	}
 }
@@ -300,10 +318,7 @@ static void keyboard_handle_key(void *data, struct wl_keyboard *wl_keyboard,
 	case WL_KEYBOARD_KEY_STATE_PRESSED:
 		switch (keysym) {
 		case XKB_KEY_Escape:
-			seat->pointer_selection.has_selection = false;
-			seat->touch_selection.has_selection = false;
-			state->edit_anchor = false;
-			state->running = false;
+			handle_selection_cancelled(seat);
 			break;
 
 		case XKB_KEY_space:
