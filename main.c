@@ -47,6 +47,8 @@ static void move_seat(struct slurp_seat *seat, wl_fixed_t surface_x,
 	if (seat->state->edit_anchor) {
 		current_selection->anchor_x += x - current_selection->x;
 		current_selection->anchor_y += y - current_selection->y;
+		current_selection->start_x += x - current_selection->x;
+		current_selection->start_y += y - current_selection->y;
 	}
 
 	current_selection->x = x;
@@ -97,17 +99,36 @@ static void handle_active_selection_motion(struct slurp_seat *seat, struct slurp
 	int32_t anchor_y = current_selection->anchor_y;
 	int32_t dist_x = current_selection->x - anchor_x;
 	int32_t dist_y = current_selection->y - anchor_y;
+    int32_t start_x = current_selection->start_x;
+    int32_t start_y = current_selection->start_y;
 
 	current_selection->has_selection = true;
-	// selection includes the seat and anchor positions
-	int32_t width = abs(dist_x) + 1;
-	int32_t height = abs(dist_y) + 1;
-	if (seat->state->aspect_ratio) {
+
+	int32_t width;
+	int32_t height;
+
+    if (seat->state->mirror_mode) {
+        width  = 2 * abs(start_x - current_selection->x);
+        height = 2 * abs(start_y - current_selection->y);
+    } else {
+        // selection includes the seat and anchor positions
+        width = abs(dist_x) + 1;
+        height = abs(dist_y) + 1;
+    }
+
+    if (seat->state->aspect_ratio) {
 		width = max(width, height / seat->state->aspect_ratio);
 		height = max(height, width * seat->state->aspect_ratio);
 	}
-	current_selection->selection.x = dist_x > 0 ? anchor_x : anchor_x - (width - 1);
-	current_selection->selection.y = dist_y > 0 ? anchor_y : anchor_y - (height - 1);
+    if (seat->state->mirror_mode) {
+        int32_t delta_x = width / 2;
+        int32_t delta_y = height / 2;
+        current_selection->anchor_x = anchor_x = start_x - delta_x;
+        current_selection->anchor_y = anchor_y = start_y - delta_y;
+    }
+
+	current_selection->selection.x = dist_x > 0 || seat->state->mirror_mode ? anchor_x : anchor_x - (width - 1);
+	current_selection->selection.y = dist_y > 0 || seat->state->mirror_mode ? anchor_y : anchor_y - (height - 1);
 	current_selection->selection.width = width;
 	current_selection->selection.height = height;
 }
@@ -209,8 +230,8 @@ static void handle_selection_start(struct slurp_seat *seat,
 			state->running = false;
 		}
 	} else {
-		current_selection->anchor_x = current_selection->x;
-		current_selection->anchor_y = current_selection->y;
+		current_selection->start_x = current_selection->anchor_x = current_selection->x;
+		current_selection->start_y = current_selection->anchor_y = current_selection->y;
 	}
 }
 
@@ -328,6 +349,7 @@ static void keyboard_handle_key(void *data, struct wl_keyboard *wl_keyboard,
 			}
 			state->edit_anchor = true;
 			break;
+
 		case XKB_KEY_Shift_L:
 		case XKB_KEY_Shift_R:
 			if (!state->fixed_aspect_ratio) {
@@ -337,6 +359,17 @@ static void keyboard_handle_key(void *data, struct wl_keyboard *wl_keyboard,
 				}
 			}
 			break;
+
+		case XKB_KEY_Control_L:
+		case XKB_KEY_Control_R:
+            state->mirror_mode = true;
+            if (state->resizing_selection) {
+                struct slurp_selection *current = slurp_seat_current_selection(seat);
+                current->start_x = current->anchor_x + round(current->selection.width  / 2);
+                current->start_y = current->anchor_y + round(current->selection.height / 2);
+                recompute_selection(seat);
+            }
+            break;
 		}
 		break;
 
@@ -348,7 +381,12 @@ static void keyboard_handle_key(void *data, struct wl_keyboard *wl_keyboard,
 			if (state->resizing_selection) {
 				recompute_selection(seat);
 			}
-		}
+		} else if (keysym == XKB_KEY_Control_L || keysym == XKB_KEY_Control_R) {
+            state->mirror_mode = false;
+			if (state->resizing_selection) {
+				recompute_selection(seat);
+			}
+        }
 		break;
 	}
 
@@ -900,6 +938,7 @@ int main(int argc, char *argv[]) {
 		.resizing_selection = false,
 		.fixed_aspect_ratio = false,
 		.aspect_ratio = 0,
+		.mirror_mode = false,
 		.font_family = FONT_FAMILY
 	};
 
