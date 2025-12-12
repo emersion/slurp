@@ -129,6 +129,12 @@ static void pointer_handle_enter(void *data, struct wl_pointer *wl_pointer,
 	// TODO: handle multiple overlapping outputs
 	seat->pointer_selection.current_output = output;
 
+	if (seat->state->print_focused_output) {
+		seat->state->result = output->logical_geometry;
+		seat->state->running = false;
+		return;
+	}
+
 	move_seat(seat, surface_x, surface_y, &seat->pointer_selection);
 
 	switch (seat->button_state) {
@@ -728,6 +734,7 @@ static const char usage[] =
 	"  -w n         Set border weight.\n"
 	"  -f s         Set output format.\n"
 	"  -o           Select a display output.\n"
+	"  -O           Print the focused display output geometry and exit.\n"
 	"  -p           Select a single point.\n"
 	"  -r           Restrict selection to predefined boxes.\n"
 	"  -a w:h       Force aspect ratio.\n"
@@ -897,6 +904,7 @@ int main(int argc, char *argv[]) {
 		.border_weight = 2,
 		.display_dimensions = false,
 		.restrict_selection = false,
+		.print_focused_output = false,
 		.resizing_selection = false,
 		.fixed_aspect_ratio = false,
 		.aspect_ratio = 0,
@@ -907,7 +915,7 @@ int main(int argc, char *argv[]) {
 	char *format = "%x,%y %wx%h\n";
 	bool output_boxes = false;
 	int w, h;
-	while ((opt = getopt(argc, argv, "hdb:c:s:B:w:proa:f:F:x")) != -1) {
+	while ((opt = getopt(argc, argv, "hdb:c:s:B:w:proa:f:F:xO")) != -1) {
 		switch (opt) {
 		case 'h':
 			printf("%s", usage);
@@ -949,6 +957,9 @@ int main(int argc, char *argv[]) {
 		case 'o':
 			output_boxes = true;
 			break;
+		case 'O':
+			state.print_focused_output = true;
+			break;
 		case 'r':
 			state.restrict_selection = true;
 			break;
@@ -975,6 +986,11 @@ int main(int argc, char *argv[]) {
 
 	if (state.single_point && state.restrict_selection) {
 		fprintf(stderr, "-p and -r cannot be used together\n");
+		return EXIT_FAILURE;
+	}
+
+	if (state.print_focused_output && (state.single_point || state.restrict_selection)) {
+		fprintf(stderr, "-O cannot be used with -p or -r\n");
 		return EXIT_FAILURE;
 	}
 
