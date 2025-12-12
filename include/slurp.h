@@ -51,6 +51,7 @@ struct slurp_state {
   bool single_point;
   bool restrict_selection;
   bool crosshairs;
+  bool print_focused_output; // Print focused output geometry and exit
   bool resizing_selection;
   struct wl_list boxes; // slurp_box::link
   bool fixed_aspect_ratio;
