@@ -5,6 +5,8 @@ packages:
   - wayland-protocols
   - cairo
   - libxkbcommon
+  # needed for clang-format
+  - clang
 sources:
   - https://github.com/emerison/slurp
 tasks:
@@ -13,4 +15,4 @@ tasks:
       meson setup build
   - build: |
       cd slurp
-      ninja -C build
+      ninja -C build all clang-format-check
