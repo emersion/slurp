@@ -228,7 +228,9 @@ static void handle_selection_end(struct slurp_seat *seat,
 		state->result.width = state->result.height = 1;
 	}
 	state->resizing_selection = false;
-	state->running = false;
+  if (!state->confirm_selection) {
+		state->running = false;
+	}
 }
 
 static void handle_selection_cancelled(struct slurp_seat *seat) {
@@ -328,6 +330,7 @@ static void keyboard_handle_key(void *data, struct wl_keyboard *wl_keyboard,
 			}
 			state->edit_anchor = true;
 			break;
+		
 		case XKB_KEY_Shift_L:
 		case XKB_KEY_Shift_R:
 			if (!state->fixed_aspect_ratio) {
@@ -337,19 +340,28 @@ static void keyboard_handle_key(void *data, struct wl_keyboard *wl_keyboard,
 				}
 			}
 			break;
+
+		case XKB_KEY_Return:
+			state->running = false;
+			break;
 		}
 		break;
 
 	case WL_KEYBOARD_KEY_STATE_RELEASED:
-		if (keysym == XKB_KEY_space) {
+		switch (keysym) {
+		case XKB_KEY_space:
 			state->edit_anchor = false;
-		} else if (!state->fixed_aspect_ratio && (keysym == XKB_KEY_Shift_L || keysym == XKB_KEY_Shift_R)) {
-			state->aspect_ratio = 0;
-			if (state->resizing_selection) {
-				recompute_selection(seat);
+			break;
+		case XKB_KEY_Shift_L:
+		case XKB_KEY_Shift_R:
+			if (!state->fixed_aspect_ratio) {
+				state->aspect_ratio = 0;
+				if (state->resizing_selection) {
+          recompute_selection(seat);
+        }
 			}
+			break;
 		}
-		break;
 	}
 
 }
@@ -730,8 +742,9 @@ static const char usage[] =
 	"  -o           Select a display output.\n"
 	"  -p           Select a single point.\n"
 	"  -r           Restrict selection to predefined boxes.\n"
+	"  -C           Confirm selection with enter key.\n"
 	"  -a w:h       Force aspect ratio.\n"
-	"  -x           Display crosshairs across active display output.\n";
+    "  -x           Display crosshairs across active display output.\n";
 
 uint32_t parse_color(const char *color) {
 	if (color[0] == '#') {
@@ -899,6 +912,7 @@ int main(int argc, char *argv[]) {
 		.restrict_selection = false,
 		.resizing_selection = false,
 		.fixed_aspect_ratio = false,
+		.confirm_selection = false,
 		.aspect_ratio = 0,
 		.font_family = FONT_FAMILY
 	};
@@ -907,7 +921,7 @@ int main(int argc, char *argv[]) {
 	char *format = "%x,%y %wx%h\n";
 	bool output_boxes = false;
 	int w, h;
-	while ((opt = getopt(argc, argv, "hdb:c:s:B:w:proa:f:F:x")) != -1) {
+	while ((opt = getopt(argc, argv, "hdb:c:s:B:w:prCoa:f:F:x")) != -1) {
 		switch (opt) {
 		case 'h':
 			printf("%s", usage);
@@ -952,6 +966,9 @@ int main(int argc, char *argv[]) {
 		case 'r':
 			state.restrict_selection = true;
 			break;
+		case 'C':
+			state.confirm_selection = true;
+			break;
 		case 'a':
 			if (sscanf(optarg, "%d:%d", &w, &h) != 2) {
 				fprintf(stderr, "invalid aspect ratio\n");
@@ -978,6 +995,11 @@ int main(int argc, char *argv[]) {
 		return EXIT_FAILURE;
 	}
 
+	if (state.single_point && state.confirm_selection) {
+		fprintf(stderr, "-p and -C cannot be used together\n");
+    	return EXIT_FAILURE;
+	}
+  
 	if (!acquire_lock()) {
 		// acquire_lock prints an appropriate error message itself
 		return EXIT_FAILURE;
