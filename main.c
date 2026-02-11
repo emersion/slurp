@@ -149,7 +149,7 @@ static void pointer_handle_enter(void *data, struct wl_pointer *wl_pointer,
 		wp_cursor_shape_device_v1_set_shape(device, serial,
 			WP_CURSOR_SHAPE_DEVICE_V1_SHAPE_CROSSHAIR);
 		wp_cursor_shape_device_v1_destroy(device);
-	} else {
+	} else if (seat->cursor_surface) {
 		wl_surface_set_buffer_scale(seat->cursor_surface, output->scale);
 		wl_surface_attach(seat->cursor_surface,
 			wl_cursor_image_get_buffer(output->cursor_image), 0, 0);
@@ -311,6 +311,9 @@ static void keyboard_handle_key(void *data, struct wl_keyboard *wl_keyboard,
 		const uint32_t serial, const uint32_t time, const uint32_t key,
 		const uint32_t key_state) {
 	struct slurp_seat *seat = data;
+	if (seat->xkb_state == NULL) {
+		return;
+	}
 	struct slurp_state *state = seat->state;
 	const xkb_keysym_t keysym = xkb_state_key_get_one_sym(seat->xkb_state, key + 8);
 
@@ -359,6 +362,9 @@ static void keyboard_handle_modifiers(void *data, struct wl_keyboard *wl_keyboar
 		const uint32_t mods_latched, const uint32_t mods_locked,
 		const uint32_t group) {
 	struct slurp_seat *seat = data;
+	if (seat->xkb_state == NULL) {
+		return;
+	}
 	xkb_state_update_mask(seat->xkb_state, mods_depressed, mods_latched,
 			mods_locked, 0, 0, group);
 }
@@ -1070,24 +1076,28 @@ int main(int argc, char *argv[]) {
 		zwlr_layer_surface_v1_set_exclusive_zone(output->layer_surface, -1);
 		wl_surface_commit(output->surface);
 	}
-	// second roundtrip for xdg-output
-	wl_display_roundtrip(state.display);
-
+	// Create cursor surfaces and load cursor themes before the second
+	// roundtrip, which may dispatch pointer/keyboard events via the
+	// newly-created layer surfaces. Without this, handlers can
+	// dereference NULL cursor_surface or xkb_state pointers.
 	if (!state.cursor_shape_manager && !create_cursors(&state)) {
 		return EXIT_FAILURE;
-	}
-
-	if (output_boxes) {
-		struct slurp_output *box_output;
-		wl_list_for_each(box_output, &state.outputs, link) {
-			add_choice_box(&state, &box_output->logical_geometry);
-		}
 	}
 
 	struct slurp_seat *seat;
 	wl_list_for_each(seat, &state.seats, link) {
 		seat->cursor_surface =
 			wl_compositor_create_surface(state.compositor);
+	}
+
+	// second roundtrip for xdg-output
+	wl_display_roundtrip(state.display);
+
+	if (output_boxes) {
+		struct slurp_output *box_output;
+		wl_list_for_each(box_output, &state.outputs, link) {
+			add_choice_box(&state, &box_output->logical_geometry);
+		}
 	}
 
 	state.running = true;
