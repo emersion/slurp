@@ -470,6 +470,9 @@ static void destroy_seat(struct slurp_seat *seat) {
 	if (seat->wl_keyboard) {
 		wl_keyboard_destroy(seat->wl_keyboard);
 	}
+	if (seat->wl_touch) {
+		wl_touch_destroy(seat->wl_touch);
+	}
 	xkb_state_unref(seat->xkb_state);
 	xkb_keymap_unref(seat->xkb_keymap);
 	wl_seat_destroy(seat->wl_seat);
