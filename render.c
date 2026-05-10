@@ -1,5 +1,9 @@
 #include <cairo/cairo.h>
 #include <stdio.h>
+
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
 #include <stdlib.h>
 
 #include "pool-buffer.h"
@@ -16,7 +20,73 @@ static void set_source_u32(cairo_t *cairo, uint32_t color) {
 static void draw_rect(cairo_t *cairo, struct slurp_box *box, uint32_t color) {
 	set_source_u32(cairo, color);
 	cairo_rectangle(cairo, box->x, box->y,
-			box->width, box->height);
+		box->width, box->height);
+}
+
+static void draw_chamfered_rect(cairo_t *cairo, struct slurp_box *box, uint32_t color, uint32_t radius) {
+	set_source_u32(cairo, color);
+	
+	int r = radius;
+
+	int half_width = box->width / 2;
+	int half_height = box->height / 2;
+	if (r > half_width || r > half_height) {
+		r = half_width < half_height ? half_width : half_height;
+	}
+
+	uint32_t line_dx = box->width - (2 * r);
+	uint32_t line_dy = box->height - (2 * r);
+
+	cairo_move_to(cairo, box->x + r, box->y);
+	cairo_rel_line_to(cairo, line_dx, 0);
+	cairo_rel_line_to(cairo, r, r);
+	cairo_rel_line_to(cairo, 0, line_dy);
+	cairo_rel_line_to(cairo, -r, r);
+	cairo_rel_line_to(cairo, -line_dx, 0);
+	cairo_rel_line_to(cairo, -r, -r);
+	cairo_rel_line_to(cairo, 0, -line_dy);
+	cairo_rel_line_to(cairo, r, -r);
+
+	cairo_close_path(cairo);
+}
+
+static void draw_round_rect(cairo_t *cairo, struct slurp_box *box, uint32_t color, uint32_t radius) {
+	set_source_u32(cairo, color);
+
+	double x = box->x, y = box->y;
+	double w = box->width, h = box->height;
+	int r = radius;
+
+	int half_width = box->width / 2;
+	int half_height = box->height / 2;
+	if (r > half_width || r > half_height) {
+		r = half_width < half_height ? half_width : half_height;
+	}
+
+	cairo_move_to(cairo, x + r, y);
+	cairo_arc(cairo, x + w - r, y + r    , r, -M_PI / 2, 0);
+	cairo_arc(cairo, x + w - r, y + h - r, r,  0       , M_PI / 2);
+	cairo_arc(cairo, x + r    , y + h - r, r,  M_PI / 2, M_PI);
+	cairo_arc(cairo, x + r    , y + r    , r,  M_PI    , 3 * M_PI / 2);
+	cairo_close_path(cairo);
+}
+
+
+static void draw_sel_shape(cairo_t *cairo, struct slurp_state *state,
+		struct slurp_box *sel_box, uint32_t color) {
+	uint32_t abs_h = sel_box->height >= 0 ? sel_box->height : -sel_box->height;
+	uint32_t abs_w = sel_box->width >= 0 ? sel_box->width : -sel_box->width;
+
+	bool use_rect = state->border_radius == 0 ||
+		abs_h < state->border_weight ||
+		abs_w < state->border_weight;
+	if (use_rect) {
+		draw_rect(cairo, sel_box, color);
+	} else if (state->border_chamfered) {
+		draw_chamfered_rect(cairo, sel_box, color, state->border_radius);
+	} else {
+		draw_round_rect(cairo, sel_box, color, state->border_radius);
+	}
 }
 
 void render(struct slurp_output *output) {
@@ -66,12 +136,13 @@ void render(struct slurp_output *output) {
 		}
 		struct slurp_box *sel_box = &current_selection->selection;
 
-		draw_rect(cairo, sel_box, state->colors.selection);
+		// Draw selection fill
+		draw_sel_shape(cairo, state, sel_box, state->colors.selection);
 		cairo_fill(cairo);
 
 		// Draw border
 		cairo_set_line_width(cairo, state->border_weight);
-		draw_rect(cairo, sel_box, state->colors.border);
+		draw_sel_shape(cairo, state, sel_box, state->colors.border);
 		cairo_stroke(cairo);
 
 		if (state->display_dimensions) {

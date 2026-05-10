@@ -47,6 +47,8 @@ struct slurp_state {
   const char *font_family;
 
   uint32_t border_weight;
+  uint32_t border_radius;
+  bool border_chamfered;
   bool display_dimensions;
   bool single_point;
   bool restrict_selection;

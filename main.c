@@ -729,6 +729,8 @@ static const char usage[] =
 	"  -B #rrggbbaa Set option box color.\n"
 	"  -F s         Set the font family for the dimensions.\n"
 	"  -w n         Set border weight.\n"
+	"  -R n         Set border radius.\n"
+	"  -C           Set border to use 45 degree chamfer instead of rounding.\n"
 	"  -f s         Set output format.\n"
 	"  -o           Select a display output.\n"
 	"  -p           Select a single point.\n"
@@ -898,6 +900,8 @@ int main(int argc, char *argv[]) {
 			.choice = BG_COLOR,
 		},
 		.border_weight = 2,
+		.border_radius = 0,
+		.border_chamfered = false,
 		.display_dimensions = false,
 		.restrict_selection = false,
 		.resizing_selection = false,
@@ -910,7 +914,9 @@ int main(int argc, char *argv[]) {
 	char *format = "%x,%y %wx%h\n";
 	bool output_boxes = false;
 	int w, h;
-	while ((opt = getopt(argc, argv, "hdb:c:s:B:w:proa:f:F:x")) != -1) {
+	while ((opt = getopt(argc, argv, "hdb:c:s:B:w:R:Cproa:f:F:x")) != -1) {
+		char *endptr;
+
 		switch (opt) {
 		case 'h':
 			printf("%s", usage);
@@ -936,16 +942,26 @@ int main(int argc, char *argv[]) {
 		case 'F':
 			state.font_family = optarg;
 			break;
-		case 'w': {
+		case 'w':
 			errno = 0;
-			char *endptr;
 			state.border_weight = strtol(optarg, &endptr, 10);
 			if (*endptr || errno) {
 				fprintf(stderr, "Error: expected numeric argument for -w\n");
 				exit(EXIT_FAILURE);
 			}
 			break;
-		}
+		case 'R':
+			errno = 0;
+			state.border_radius = strtol(optarg, &endptr, 10);
+			if (*endptr || errno) {
+				fprintf(stderr, "Error: expected numeric argument for -R\n");
+				exit(EXIT_FAILURE);
+			}
+			break;
+		case 'C':
+			errno = 0;
+			state.border_chamfered = true;
+			break;
 		case 'p':
 			state.single_point = true;
 			break;
