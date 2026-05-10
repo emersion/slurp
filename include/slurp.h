@@ -42,12 +42,15 @@ struct slurp_state {
     uint32_t border;
     uint32_t selection;
     uint32_t choice;
+    uint32_t ruler;
   } colors;
 
   const char *font_family;
 
   uint32_t border_weight;
+  uint32_t ruler_weight;
   bool display_dimensions;
+  bool display_rulers;
   bool single_point;
   bool restrict_selection;
   bool crosshairs;

@@ -723,12 +723,15 @@ static const char usage[] =
 	"\n"
 	"  -h           Show help message and quit.\n"
 	"  -d           Display dimensions of selection.\n"
+  "  -D           Display rulers.\n"
 	"  -b #rrggbbaa Set background color.\n"
 	"  -c #rrggbbaa Set border color.\n"
 	"  -s #rrggbbaa Set selection color.\n"
 	"  -B #rrggbbaa Set option box color.\n"
+  "  -R #rrggbbaa Set ruler color.\n"
 	"  -F s         Set the font family for the dimensions.\n"
 	"  -w n         Set border weight.\n"
+	"  -W n         Set ruler weight.\n"
 	"  -f s         Set output format.\n"
 	"  -o           Select a display output.\n"
 	"  -p           Select a single point.\n"
@@ -896,9 +899,12 @@ int main(int argc, char *argv[]) {
 			.border = BORDER_COLOR,
 			.selection = SELECTION_COLOR,
 			.choice = BG_COLOR,
+			.ruler = BG_COLOR,
 		},
+		.ruler_weight = 2,
 		.border_weight = 2,
 		.display_dimensions = false,
+		.display_rulers = false,
 		.restrict_selection = false,
 		.resizing_selection = false,
 		.fixed_aspect_ratio = false,
@@ -910,13 +916,19 @@ int main(int argc, char *argv[]) {
 	char *format = "%x,%y %wx%h\n";
 	bool output_boxes = false;
 	int w, h;
-	while ((opt = getopt(argc, argv, "hdb:c:s:B:w:proa:f:F:x")) != -1) {
+	while ((opt = getopt(argc, argv, "hdDb:R:c:s:B:w:W:proa:f:F:x")) != -1) {
 		switch (opt) {
 		case 'h':
 			printf("%s", usage);
 			return EXIT_SUCCESS;
 		case 'd':
 			state.display_dimensions = true;
+			break;
+		case 'D':
+			state.display_rulers = true;
+			break;
+		case 'R':
+			state.colors.ruler = parse_color(optarg);
 			break;
 		case 'b':
 			state.colors.background = parse_color(optarg);
@@ -940,6 +952,16 @@ int main(int argc, char *argv[]) {
 			errno = 0;
 			char *endptr;
 			state.border_weight = strtol(optarg, &endptr, 10);
+			if (*endptr || errno) {
+				fprintf(stderr, "Error: expected numeric argument for -w\n");
+				exit(EXIT_FAILURE);
+			}
+			break;
+		}
+		case 'W': {
+			errno = 0;
+			char *endptr;
+			state.ruler_weight = strtol(optarg, &endptr, 10);
 			if (*endptr || errno) {
 				fprintf(stderr, "Error: expected numeric argument for -w\n");
 				exit(EXIT_FAILURE);
@@ -1148,3 +1170,4 @@ int main(int argc, char *argv[]) {
 
 	return status;
 }
+

@@ -1,4 +1,5 @@
 #include <cairo/cairo.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -17,6 +18,13 @@ static void draw_rect(cairo_t *cairo, struct slurp_box *box, uint32_t color) {
 	set_source_u32(cairo, color);
 	cairo_rectangle(cairo, box->x, box->y,
 			box->width, box->height);
+}
+
+// Treat width and height as X2 and Y2;
+static void draw_line(cairo_t *cairo, struct slurp_box *box, uint32_t color) {
+	set_source_u32(cairo, color);
+	cairo_move_to(cairo, box->x, box->y);
+	cairo_line_to(cairo, box->width, box->height);
 }
 
 void render(struct slurp_output *output) {
@@ -73,6 +81,31 @@ void render(struct slurp_output *output) {
 		cairo_set_line_width(cairo, state->border_weight);
 		draw_rect(cairo, sel_box, state->colors.border);
 		cairo_stroke(cairo);
+
+		if (state->display_rulers) {
+			bool revert_x = sel_box->x < current_selection->anchor_x;
+			bool revert_y = sel_box->y < current_selection->anchor_y;
+
+			uint32_t screen_x = current_selection->current_output->logical_geometry.x;
+			uint32_t screen_y = current_selection->current_output->logical_geometry.y;
+
+			struct slurp_box vertical_line;
+			vertical_line.x = sel_box->x + (revert_x ? -1 : sel_box->width + 1);
+			vertical_line.y = screen_y + (revert_y ? current_selection->current_output->height : 0);
+			vertical_line.width = sel_box->x + (revert_x ? -1 : sel_box->width + 1);
+			vertical_line.height = sel_box->y + (revert_y ? -1 : sel_box->height + 1);
+
+			struct slurp_box horizontal_line;
+			horizontal_line.x = screen_x + (revert_x ? current_selection->current_output->width : 0);
+			horizontal_line.y = sel_box->y + (revert_y ? -1 : sel_box->height + 1);
+			horizontal_line.width = vertical_line.width;
+			horizontal_line.height = vertical_line.height;
+
+			cairo_set_line_width(cairo, state->ruler_weight);
+			draw_line(cairo, &vertical_line, state->colors.ruler);
+			draw_line(cairo, &horizontal_line, state->colors.ruler);
+			cairo_stroke(cairo);
+		}
 
 		if (state->display_dimensions) {
 			cairo_select_font_face(cairo, state->font_family,

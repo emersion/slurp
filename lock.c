@@ -53,4 +53,3 @@ bool acquire_lock() {
 	return true;
 }
 
-

@@ -31,6 +31,9 @@ held, the selection is moved instead of being resized.
 *-d*
 	Display dimensions of selection.
 
+*-D*
+	Display rulers.
+
 *-b* _color_
 	Set background color. Default is #FFFFFF40. See *COLORS* for more detail.
 
@@ -44,6 +47,9 @@ held, the selection is moved instead of being resized.
 	Set color for highlighting predefined rectangles from standard input when not
 	selected. Default is #FFFFFF40.
 
+*-R* _color_
+	Set ruler color. Default is #00000000. See *COLORS* for more detail.
+
 *-F* _font family_
 	Set the font family name when displaying the dimensions box. Only useful
 	when combined with the -d option. The available font family names guaranteed
@@ -52,6 +58,9 @@ held, the selection is moved instead of being resized.
 
 *-w* _weight_
 	Set border weight. Default is 2.
+
+*-W* _weight_
+	Set ruler weight. Default is 2.
 
 *-f* _format_
 	Set format. See *FORMAT* for more detail.
