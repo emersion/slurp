@@ -69,6 +69,9 @@ static void seat_update_selection(struct slurp_seat *seat) {
 			}
 			seat->pointer_selection.selection = *box;
 			seat->pointer_selection.has_selection = true;
+			if (seat->state->prioritize_selection) {
+				break;
+			}
 		}
 	}
 }
@@ -733,6 +736,7 @@ static const char usage[] =
 	"  -o           Select a display output.\n"
 	"  -p           Select a single point.\n"
 	"  -r           Restrict selection to predefined boxes.\n"
+	"  -P           Prioritize rectangles in input order.\n"
 	"  -a w:h       Force aspect ratio.\n"
 	"  -x           Display crosshairs across active display output.\n";
 
@@ -900,6 +904,7 @@ int main(int argc, char *argv[]) {
 		.border_weight = 2,
 		.display_dimensions = false,
 		.restrict_selection = false,
+		.prioritize_selection = false,
 		.resizing_selection = false,
 		.fixed_aspect_ratio = false,
 		.aspect_ratio = 0,
@@ -910,7 +915,7 @@ int main(int argc, char *argv[]) {
 	char *format = "%x,%y %wx%h\n";
 	bool output_boxes = false;
 	int w, h;
-	while ((opt = getopt(argc, argv, "hdb:c:s:B:w:proa:f:F:x")) != -1) {
+	while ((opt = getopt(argc, argv, "hdb:c:s:B:w:proa:f:F:x:P")) != -1) {
 		switch (opt) {
 		case 'h':
 			printf("%s", usage);
@@ -954,6 +959,9 @@ int main(int argc, char *argv[]) {
 			break;
 		case 'r':
 			state.restrict_selection = true;
+			break;
+		case 'P':
+			state.prioritize_selection = true;
 			break;
 		case 'a':
 			if (sscanf(optarg, "%d:%d", &w, &h) != 2) {

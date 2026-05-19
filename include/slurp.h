@@ -50,6 +50,7 @@ struct slurp_state {
   bool display_dimensions;
   bool single_point;
   bool restrict_selection;
+  bool prioritize_selection;
   bool crosshairs;
   bool resizing_selection;
   struct wl_list boxes; // slurp_box::link
