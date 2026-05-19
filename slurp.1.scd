@@ -69,6 +69,11 @@ held, the selection is moved instead of being resized.
 	from standard input, if *-o* is used, the rectangles of all display outputs.
 	This option conflicts with *-p*.
 
+*-P*
+	Prioritize predefined rectangles in input order, taking the first
+	rectangle found. The default is to select the smallest predefined
+	rectangle when there are overlapping regions.
+
 *-a* _width_:_height_
 	Force selections to have the given aspect ratio. This constraint is not
 	applied to the predefined rectangles specified using *-o*.
