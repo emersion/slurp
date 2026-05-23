@@ -22,41 +22,42 @@ struct slurp_selection {
 };
 
 struct slurp_state {
-  bool running;
-  bool edit_anchor;
+	bool running;
+	bool edit_anchor;
 
-  struct wl_display *display;
-  struct wl_registry *registry;
-  struct wl_shm *shm;
-  struct wl_compositor *compositor;
-  struct zwlr_layer_shell_v1 *layer_shell;
-  struct zxdg_output_manager_v1 *xdg_output_manager;
-  struct wp_cursor_shape_manager_v1 *cursor_shape_manager;
-  struct wl_list outputs; // slurp_output::link
-  struct wl_list seats;   // slurp_seat::link
+	struct wl_display *display;
+	struct wl_registry *registry;
+	struct wl_shm *shm;
+	struct wl_compositor *compositor;
+	struct zwlr_layer_shell_v1 *layer_shell;
+	struct zxdg_output_manager_v1 *xdg_output_manager;
+	struct wp_cursor_shape_manager_v1 *cursor_shape_manager;
+	struct wl_list outputs; // slurp_output::link
+	struct wl_list seats; // slurp_seat::link
 
-  struct xkb_context *xkb_context;
+	struct xkb_context *xkb_context;
 
-  struct {
-    uint32_t background;
-    uint32_t border;
-    uint32_t selection;
-    uint32_t choice;
-  } colors;
+	struct {
+		uint32_t background;
+		uint32_t border;
+		uint32_t selection;
+		uint32_t choice;
+	} colors;
 
-  const char *font_family;
+	const char *font_family;
 
-  uint32_t border_weight;
-  bool display_dimensions;
-  bool single_point;
-  bool restrict_selection;
+	uint32_t border_weight;
+	bool display_dimensions;
+	bool single_point;
+	bool restrict_selection;
+	bool confirm_selection;
   bool crosshairs;
   bool resizing_selection;
-  struct wl_list boxes; // slurp_box::link
-  bool fixed_aspect_ratio;
-  double aspect_ratio; // h / w
+	struct wl_list boxes; // slurp_box::link
+	bool fixed_aspect_ratio;
+	double aspect_ratio;  // h / w
 
-  struct slurp_box result;
+	struct slurp_box result;
 };
 
 struct slurp_output {
