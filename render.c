@@ -75,6 +75,7 @@ void render(struct slurp_output *output) {
 		cairo_stroke(cairo);
 
 		if (state->display_dimensions) {
+			cairo_text_extents_t extents;
 			cairo_select_font_face(cairo, state->font_family,
 					       CAIRO_FONT_SLANT_NORMAL,
 					       CAIRO_FONT_WEIGHT_NORMAL);
@@ -84,8 +85,10 @@ void render(struct slurp_output *output) {
 			char dimensions[12];
 			snprintf(dimensions, sizeof(dimensions), "%ix%i",
 				 sel_box->width, sel_box->height);
-			cairo_move_to(cairo, sel_box->x + sel_box->width + 10,
-				      sel_box->y + sel_box->height + 20);
+			cairo_text_extents(cairo, dimensions, &extents);
+			cairo_move_to(cairo, sel_box->x + sel_box->width/2.0 - extents.width/2.0,
+				      sel_box->y + sel_box->height/2.0 - extents.height/2.0 - extents.y_bearing);
+
 			cairo_show_text(cairo, dimensions);
 		}
 	}
