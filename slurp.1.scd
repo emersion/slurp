@@ -64,6 +64,10 @@ held, the selection is moved instead of being resized.
 	Add predefined rectangles for all outputs, as if provided on standard input.
 	The label will be the name of the output.
 
+*-O*
+	Immediately print the geometry of the output currently containing the pointer
+	and exit.
+
 *-r*
 	Require the user to select one of the predefined rectangles. These can come
 	from standard input, if *-o* is used, the rectangles of all display outputs.

@@ -45,6 +45,12 @@ Select an output and print its name:
 slurp -o -f "%o"
 ```
 
+Print the geometry of the output currently containing the pointer:
+
+```sh
+slurp -O
+```
+
 Select a window under Sway, using `swaymsg` and `jq`:
 
 ```sh
