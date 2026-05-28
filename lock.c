@@ -2,6 +2,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <sys/file.h>
 
 #include "lock.h"
@@ -27,7 +28,17 @@ bool get_lockfile_path(char path[MAX_PATH_SIZE]) {
 		return false;
 	}
 
-	if (snprintf(path, MAX_PATH_SIZE, "%s/slurp-%s.lock", runtime_dir, display) >= MAX_PATH_SIZE) {
+	// Replace '/' with '-' in display to avoid creating subdirectories
+	char sanitized_display[256];
+	strncpy(sanitized_display, display, sizeof(sanitized_display) - 1);
+	sanitized_display[sizeof(sanitized_display) - 1] = '\0';
+	for (char *p = sanitized_display; *p; p++) {
+		if (*p == '/') {
+			*p = '-';
+		}
+	}
+
+	if (snprintf(path, MAX_PATH_SIZE, "%s/slurp-%s.lock", runtime_dir, sanitized_display) >= MAX_PATH_SIZE) {
 		fprintf(stderr, "lockfile path was too long\n");
 		return false;
 	}
@@ -52,5 +63,3 @@ bool acquire_lock() {
 	}
 	return true;
 }
-
-
