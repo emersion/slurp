@@ -21,6 +21,14 @@ struct slurp_selection {
   bool has_selection;
 };
 
+enum slurp_alignment {
+  SLURP_ALIGN_BOTTOM_RIGHT = 0,
+  SLURP_ALIGN_CENTER,
+  SLURP_ALIGN_TOP_LEFT,
+  SLURP_ALIGN_TOP_RIGHT,
+  SLURP_ALIGN_BOTTOM_LEFT,
+};
+
 struct slurp_state {
   bool running;
   bool edit_anchor;
@@ -42,12 +50,16 @@ struct slurp_state {
     uint32_t border;
     uint32_t selection;
     uint32_t choice;
+    uint32_t text;
+    uint32_t text_bg;
   } colors;
+  bool has_text_color;
 
   const char *font_family;
 
   uint32_t border_weight;
   bool display_dimensions;
+  enum slurp_alignment text_alignment;
   bool single_point;
   bool restrict_selection;
   bool crosshairs;

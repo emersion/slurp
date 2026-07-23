@@ -37,6 +37,12 @@ held, the selection is moved instead of being resized.
 *-c* _color_
 	Set border color. Default is #000000FF. See *COLORS* for more detail.
 
+*-t* _color_
+	Set text color. Default is the border color. See *COLORS* for more detail.
+
+*-T* _color_
+	Set text background color. Default is #00000000 (transparent). See *COLORS* for more detail.
+
 *-s* _color_
 	Set selection color. Default is #00000000. See *COLORS* for more detail.
 

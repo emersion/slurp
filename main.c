@@ -725,8 +725,10 @@ static const char usage[] =
 	"  -d           Display dimensions of selection.\n"
 	"  -b #rrggbbaa Set background color.\n"
 	"  -c #rrggbbaa Set border color.\n"
+	"  -t #rrggbbaa Set text color.\n"
 	"  -s #rrggbbaa Set selection color.\n"
 	"  -B #rrggbbaa Set option box color.\n"
+	"  -T #rrggbbaa Set text background color.\n"
 	"  -F s         Set the font family for the dimensions.\n"
 	"  -w n         Set border weight.\n"
 	"  -f s         Set output format.\n"
@@ -896,6 +898,7 @@ int main(int argc, char *argv[]) {
 			.border = BORDER_COLOR,
 			.selection = SELECTION_COLOR,
 			.choice = BG_COLOR,
+			.text_bg = 0x00000000,
 		},
 		.border_weight = 2,
 		.display_dimensions = false,
@@ -910,7 +913,7 @@ int main(int argc, char *argv[]) {
 	char *format = "%x,%y %wx%h\n";
 	bool output_boxes = false;
 	int w, h;
-	while ((opt = getopt(argc, argv, "hdb:c:s:B:w:proa:f:F:x")) != -1) {
+	while ((opt = getopt(argc, argv, "hdb:c:t:s:B:T:w:proa:f:F:xA:")) != -1) {
 		switch (opt) {
 		case 'h':
 			printf("%s", usage);
@@ -924,11 +927,18 @@ int main(int argc, char *argv[]) {
 		case 'c':
 			state.colors.border = parse_color(optarg);
 			break;
+		case 't':
+			state.colors.text = parse_color(optarg);
+			state.has_text_color = true;
+			break;
 		case 's':
 			state.colors.selection = parse_color(optarg);
 			break;
 		case 'B':
 			state.colors.choice = parse_color(optarg);
+			break;
+		case 'T':
+			state.colors.text_bg = parse_color(optarg);
 			break;
 		case 'f':
 			format = optarg;
@@ -969,6 +979,22 @@ int main(int argc, char *argv[]) {
 			break;
 		case 'x':
 			state.crosshairs = true;
+			break;
+		case 'A':
+			if (strcmp(optarg, "center") == 0) {
+				state.text_alignment = SLURP_ALIGN_CENTER;
+			} else if (strcmp(optarg, "top-left") == 0) {
+				state.text_alignment = SLURP_ALIGN_TOP_LEFT;
+			} else if (strcmp(optarg, "top-right") == 0) {
+				state.text_alignment = SLURP_ALIGN_TOP_RIGHT;
+			} else if (strcmp(optarg, "bottom-left") == 0) {
+				state.text_alignment = SLURP_ALIGN_BOTTOM_LEFT;
+			} else if (strcmp(optarg, "bottom-right") == 0) {
+				state.text_alignment = SLURP_ALIGN_BOTTOM_RIGHT;
+			} else {
+				fprintf(stderr, "invalid alignment: %s\n", optarg);
+				return EXIT_FAILURE;
+			}
 			break;
 		default:
 			printf("%s", usage);
