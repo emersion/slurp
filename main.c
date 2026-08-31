@@ -53,22 +53,23 @@ static void move_seat(struct slurp_seat *seat, wl_fixed_t surface_x,
 	current_selection->y = y;
 }
 
-static void seat_update_selection(struct slurp_seat *seat) {
-	seat->pointer_selection.has_selection = false;
+static void seat_update_selection(struct slurp_seat *seat,
+		struct slurp_selection *current_selection) {
+	current_selection->has_selection = false;
 
 	// find smallest box intersecting the cursor
 	struct slurp_box *box;
 	wl_list_for_each(box, &seat->state->boxes, link) {
-		if (in_box(box, seat->pointer_selection.x,
-			   seat->pointer_selection.y)) {
-			if (seat->pointer_selection.has_selection &&
+		if (in_box(box, current_selection->x,
+			   current_selection->y)) {
+			if (current_selection->has_selection &&
 				box_size(
-					&seat->pointer_selection.selection) <
+					&current_selection->selection) <
 					box_size(box)) {
 				continue;
 			}
-			seat->pointer_selection.selection = *box;
-			seat->pointer_selection.has_selection = true;
+			current_selection->selection = *box;
+			current_selection->has_selection = true;
 		}
 	}
 }
@@ -76,11 +77,13 @@ static void seat_update_selection(struct slurp_seat *seat) {
 static void seat_set_outputs_dirty(struct slurp_seat *seat) {
 	struct slurp_state *state = seat->state;
 	struct slurp_output *output;
+	struct slurp_selection *current_selection = slurp_seat_current_selection(seat);
 	wl_list_for_each(output, &seat->state->outputs, link) {
 		struct slurp_box *geometry = &output->logical_geometry;
 		if (box_intersect(geometry, &seat->pointer_selection.selection) ||
 				box_intersect(geometry, &seat->touch_selection.selection) ||
-				(state->crosshairs && in_box(geometry, seat->pointer_selection.x, seat->pointer_selection.y))) {
+				box_intersect(geometry, &seat->tablet_selection.selection) ||
+				(state->crosshairs && in_box(geometry, current_selection->x, current_selection->y))) {
 			set_output_dirty(output);
 		}
 	}
@@ -133,7 +136,7 @@ static void pointer_handle_enter(void *data, struct wl_pointer *wl_pointer,
 
 	switch (seat->button_state) {
 	case WL_POINTER_BUTTON_STATE_RELEASED:
-		seat_update_selection(seat);
+		seat_update_selection(seat, &seat->pointer_selection);
 		break;
 	case WL_POINTER_BUTTON_STATE_PRESSED:
 		handle_active_selection_motion(seat, &seat->pointer_selection);
@@ -182,7 +185,7 @@ static void pointer_handle_motion(void *data, struct wl_pointer *wl_pointer,
 
 	switch (seat->button_state) {
 	case WL_POINTER_BUTTON_STATE_RELEASED:
-		seat_update_selection(seat);
+		seat_update_selection(seat, &seat->pointer_selection);
 		break;
 	case WL_POINTER_BUTTON_STATE_PRESSED:
 		handle_active_selection_motion(seat, &seat->pointer_selection);
@@ -235,6 +238,8 @@ static void handle_selection_cancelled(struct slurp_seat *seat) {
 	struct slurp_state *state = seat->state;
 	seat->pointer_selection.has_selection = false;
 	seat->touch_selection.has_selection = false;
+	seat->tablet_selection.has_selection = false;
+	seat->tablet_tool_is_down = false;
 	state->edit_anchor = false;
 	state->running = false;
 }
@@ -243,7 +248,7 @@ static void pointer_handle_button(void *data, struct wl_pointer *wl_pointer,
 		uint32_t serial, uint32_t time, uint32_t button,
 		uint32_t button_state) {
 	struct slurp_seat *seat = data;
-	if (seat->touch_selection.has_selection) {
+	if (seat->touch_selection.has_selection || seat->tablet_selection.has_selection) {
 		return;
 	}
 
@@ -323,7 +328,8 @@ static void keyboard_handle_key(void *data, struct wl_keyboard *wl_keyboard,
 
 		case XKB_KEY_space:
 			if (!seat->pointer_selection.has_selection &&
-					!seat->touch_selection.has_selection) {
+					!seat->touch_selection.has_selection &&
+					!seat->tablet_selection.has_selection) {
 				break;
 			}
 			state->edit_anchor = true;
@@ -376,7 +382,7 @@ static void touch_handle_down(void *data, struct wl_touch *touch,
 		struct wl_surface *surface, int32_t id,
 		wl_fixed_t x, wl_fixed_t y) {
 	struct slurp_seat *seat = data;
-	if (seat->pointer_selection.has_selection) {
+	if (seat->pointer_selection.has_selection || seat->tablet_selection.has_selection) {
 		return;
 	}
 	if (seat->touch_id == TOUCH_ID_EMPTY) {
@@ -426,6 +432,197 @@ static const struct wl_touch_listener touch_listener = {
 	.cancel = touch_handle_cancel,
 };
 
+static void tablet_tool_handle_type(void *data,
+		struct zwp_tablet_tool_v2 *tool, uint32_t tool_type) {
+	// No-op
+}
+
+static void tablet_tool_handle_hardware_serial(void *data,
+		struct zwp_tablet_tool_v2 *tool, uint32_t serial_hi, uint32_t serial_lo) {
+	// No-op
+}
+
+static void tablet_tool_handle_hardware_id_wacom(void *data,
+		struct zwp_tablet_tool_v2 *tool, uint32_t id_hi, uint32_t id_lo) {
+	// No-op
+}
+
+static void tablet_tool_handle_capability(void *data,
+		struct zwp_tablet_tool_v2 *tool, uint32_t capability) {
+	// No-op
+}
+
+static void tablet_tool_handle_done(void *data,
+		struct zwp_tablet_tool_v2 *tool) {
+	// No-op
+}
+
+static void tablet_tool_handle_removed(void *data,
+		struct zwp_tablet_tool_v2 *tool) {
+	struct slurp_tablet_tool *tablet_tool = data;
+	wl_list_remove(&tablet_tool->link);
+	zwp_tablet_tool_v2_destroy(tool);
+	free(tablet_tool);
+}
+
+static void tablet_tool_handle_proximity_in(void *data,
+		struct zwp_tablet_tool_v2 *tool, uint32_t serial,
+		struct zwp_tablet_v2 *tablet, struct wl_surface *surface) {
+	struct slurp_tablet_tool *tablet_tool = data;
+	struct slurp_seat *seat = tablet_tool->seat;
+	struct slurp_output *output = output_from_surface(seat->state, surface);
+	if (output == NULL) {
+		return;
+	}
+
+	if (seat->tablet_selection.has_selection || seat->state->crosshairs) {
+		seat_set_outputs_dirty(seat);
+	}
+
+	seat->tablet_selection.current_output = output;
+
+	if (output->state->cursor_shape_manager) {
+		struct wp_cursor_shape_device_v1 *device =
+			wp_cursor_shape_manager_v1_get_tablet_tool_v2(
+				output->state->cursor_shape_manager, tool);
+		wp_cursor_shape_device_v1_set_shape(device, serial,
+			WP_CURSOR_SHAPE_DEVICE_V1_SHAPE_CROSSHAIR);
+		wp_cursor_shape_device_v1_destroy(device);
+	} else {
+		wl_surface_set_buffer_scale(seat->cursor_surface, output->scale);
+		wl_surface_attach(seat->cursor_surface,
+			wl_cursor_image_get_buffer(output->cursor_image), 0, 0);
+		zwp_tablet_tool_v2_set_cursor(tool, serial, seat->cursor_surface,
+			output->cursor_image->hotspot_x / output->scale,
+			output->cursor_image->hotspot_y / output->scale);
+		wl_surface_commit(seat->cursor_surface);
+	}
+}
+
+static void tablet_tool_handle_proximity_out(void *data,
+		struct zwp_tablet_tool_v2 *tool) {
+	struct slurp_tablet_tool *tablet_tool = data;
+	struct slurp_seat *seat = tablet_tool->seat;
+
+	if (seat->tablet_tool_is_down) {
+		seat->tablet_tool_is_down = false;
+		handle_selection_end(seat, &seat->tablet_selection);
+	}
+	seat->tablet_selection.current_output = NULL;
+}
+
+static void tablet_tool_handle_down(void *data,
+		struct zwp_tablet_tool_v2 *tool, uint32_t serial) {
+	struct slurp_tablet_tool *tablet_tool = data;
+	struct slurp_seat *seat = tablet_tool->seat;
+
+	if (seat->pointer_selection.has_selection || seat->touch_selection.has_selection) {
+		return;
+	}
+
+	seat->tablet_tool_is_down = true;
+	handle_selection_start(seat, &seat->tablet_selection);
+}
+
+static void tablet_tool_handle_up(void *data,
+		struct zwp_tablet_tool_v2 *tool) {
+	struct slurp_tablet_tool *tablet_tool = data;
+	struct slurp_seat *seat = tablet_tool->seat;
+
+	if (seat->tablet_tool_is_down) {
+		seat->tablet_tool_is_down = false;
+		handle_selection_end(seat, &seat->tablet_selection);
+	}
+}
+
+static void tablet_tool_handle_motion(void *data,
+		struct zwp_tablet_tool_v2 *tool, wl_fixed_t x, wl_fixed_t y) {
+	struct slurp_tablet_tool *tablet_tool = data;
+	struct slurp_seat *seat = tablet_tool->seat;
+	struct slurp_state *state = seat->state;
+
+	if (seat->tablet_selection.has_selection || state->crosshairs) {
+		seat_set_outputs_dirty(seat);
+	}
+
+	move_seat(seat, x, y, &seat->tablet_selection);
+
+	if (seat->tablet_tool_is_down) {
+		handle_active_selection_motion(seat, &seat->tablet_selection);
+	} else {
+		seat_update_selection(seat, &seat->tablet_selection);
+	}
+
+	if (seat->tablet_selection.has_selection || state->crosshairs) {
+		seat_set_outputs_dirty(seat);
+	}
+}
+
+static void tablet_tool_handle_button(void *data,
+		struct zwp_tablet_tool_v2 *tool, uint32_t serial,
+		uint32_t button, uint32_t state) {
+	struct slurp_tablet_tool *tablet_tool = data;
+	struct slurp_seat *seat = tablet_tool->seat;
+
+	if (state == ZWP_TABLET_TOOL_V2_BUTTON_STATE_PRESSED) {
+		handle_selection_cancelled(seat);
+	}
+}
+
+static const struct zwp_tablet_tool_v2_listener tablet_tool_listener = {
+	.type = tablet_tool_handle_type,
+	.hardware_serial = tablet_tool_handle_hardware_serial,
+	.hardware_id_wacom = tablet_tool_handle_hardware_id_wacom,
+	.capability = tablet_tool_handle_capability,
+	.done = tablet_tool_handle_done,
+	.removed = tablet_tool_handle_removed,
+	.proximity_in = tablet_tool_handle_proximity_in,
+	.proximity_out = tablet_tool_handle_proximity_out,
+	.down = tablet_tool_handle_down,
+	.up = tablet_tool_handle_up,
+	.motion = tablet_tool_handle_motion,
+	.pressure = noop,
+	.distance = noop,
+	.tilt = noop,
+	.rotation = noop,
+	.slider = noop,
+	.wheel = noop,
+	.button = tablet_tool_handle_button,
+	.frame = noop,
+};
+
+static void tablet_seat_handle_tablet_added(void *data,
+		struct zwp_tablet_seat_v2 *tablet_seat,
+		struct zwp_tablet_v2 *tablet) {
+	// Tablets themselves don't require tracking for selection
+}
+
+static void tablet_seat_handle_tool_added(void *data,
+		struct zwp_tablet_seat_v2 *tablet_seat,
+		struct zwp_tablet_tool_v2 *tool) {
+	struct slurp_seat *seat = data;
+	struct slurp_tablet_tool *tablet_tool = calloc(1, sizeof(struct slurp_tablet_tool));
+	if (!tablet_tool) {
+		return;
+	}
+	tablet_tool->tool = tool;
+	tablet_tool->seat = seat;
+	wl_list_insert(&seat->tablet_tools, &tablet_tool->link);
+	zwp_tablet_tool_v2_add_listener(tool, &tablet_tool_listener, tablet_tool);
+}
+
+static void tablet_seat_handle_pad_added(void *data,
+		struct zwp_tablet_seat_v2 *tablet_seat,
+		struct zwp_tablet_pad_v2 *pad) {
+	// Pads don't require tracking for selection
+}
+
+static const struct zwp_tablet_seat_v2_listener tablet_seat_listener = {
+	.tablet_added = tablet_seat_handle_tablet_added,
+	.tool_added = tablet_seat_handle_tool_added,
+	.pad_added = tablet_seat_handle_pad_added,
+};
+
 static void seat_handle_capabilities(void *data, struct wl_seat *wl_seat,
 		uint32_t capabilities) {
 	struct slurp_seat *seat = data;
@@ -457,8 +654,15 @@ static void create_seat(struct slurp_state *state, struct wl_seat *wl_seat) {
 	seat->state = state;
 	seat->wl_seat = wl_seat;
 	seat->touch_id = TOUCH_ID_EMPTY;
+	wl_list_init(&seat->tablet_tools);
 	wl_list_insert(&state->seats, &seat->link);
 	wl_seat_add_listener(wl_seat, &seat_listener, seat);
+
+	if (state->tablet_manager) {
+		seat->tablet_seat = zwp_tablet_manager_v2_get_tablet_seat(
+			state->tablet_manager, wl_seat);
+		zwp_tablet_seat_v2_add_listener(seat->tablet_seat, &tablet_seat_listener, seat);
+	}
 }
 
 static void destroy_seat(struct slurp_seat *seat) {
@@ -472,6 +676,15 @@ static void destroy_seat(struct slurp_seat *seat) {
 	}
 	if (seat->wl_touch) {
 		wl_touch_destroy(seat->wl_touch);
+	}
+	struct slurp_tablet_tool *tool, *tool_tmp;
+	wl_list_for_each_safe(tool, tool_tmp, &seat->tablet_tools, link) {
+		wl_list_remove(&tool->link);
+		zwp_tablet_tool_v2_destroy(tool->tool);
+		free(tool);
+	}
+	if (seat->tablet_seat) {
+		zwp_tablet_seat_v2_destroy(seat->tablet_seat);
 	}
 	xkb_state_unref(seat->xkb_state);
 	xkb_keymap_unref(seat->xkb_keymap);
@@ -710,6 +923,18 @@ static void handle_global(void *data, struct wl_registry *registry,
 	} else if (strcmp(interface, wp_cursor_shape_manager_v1_interface.name) == 0) {
 		state->cursor_shape_manager = wl_registry_bind(registry, name,
 			&wp_cursor_shape_manager_v1_interface, 1);
+	} else if (strcmp(interface, zwp_tablet_manager_v2_interface.name) == 0) {
+		state->tablet_manager = wl_registry_bind(registry, name,
+			&zwp_tablet_manager_v2_interface, 1);
+		struct slurp_seat *seat;
+		wl_list_for_each(seat, &state->seats, link) {
+			if (!seat->tablet_seat && seat->wl_seat) {
+				seat->tablet_seat = zwp_tablet_manager_v2_get_tablet_seat(
+					state->tablet_manager, seat->wl_seat);
+				zwp_tablet_seat_v2_add_listener(seat->tablet_seat,
+					&tablet_seat_listener, seat);
+			}
+		}
 	}
 }
 
