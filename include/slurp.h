@@ -8,6 +8,7 @@
 #include "box.h"
 #include "cursor-shape-v1-client-protocol.h"
 #include "pool-buffer.h"
+#include "tablet-unstable-v2-client-protocol.h"
 #include "wlr-layer-shell-unstable-v1-client-protocol.h"
 #include "xdg-output-unstable-v1-client-protocol.h"
 
@@ -32,6 +33,7 @@ struct slurp_state {
   struct zwlr_layer_shell_v1 *layer_shell;
   struct zxdg_output_manager_v1 *xdg_output_manager;
   struct wp_cursor_shape_manager_v1 *cursor_shape_manager;
+  struct zwp_tablet_manager_v2 *tablet_manager;
   struct wl_list outputs; // slurp_output::link
   struct wl_list seats;   // slurp_seat::link
 
@@ -84,6 +86,12 @@ struct slurp_output {
   struct wl_cursor_image *cursor_image;
 };
 
+struct slurp_tablet_tool {
+  struct zwp_tablet_tool_v2 *tool;
+  struct slurp_seat *seat;
+  struct wl_list link; // slurp_seat::tablet_tools
+};
+
 struct slurp_seat {
   struct wl_surface *cursor_surface;
   struct slurp_state *state;
@@ -93,10 +101,10 @@ struct slurp_seat {
   // keyboard:
   struct wl_keyboard *wl_keyboard;
 
-  // selection (pointer/touch):
-
+  // selection (pointer/touch/tablet):
   struct slurp_selection pointer_selection;
   struct slurp_selection touch_selection;
+  struct slurp_selection tablet_selection;
 
   // pointer:
   struct wl_pointer *wl_pointer;
@@ -109,13 +117,24 @@ struct slurp_seat {
   // touch:
   struct wl_touch *wl_touch;
   int32_t touch_id;
+
+  // tablet:
+  struct zwp_tablet_seat_v2 *tablet_seat;
+  struct wl_list tablet_tools; // slurp_tablet_tool::link
+  bool tablet_tool_is_down;
 };
 
 bool box_intersect(const struct slurp_box *a, const struct slurp_box *b);
 
 static inline struct slurp_selection *
 slurp_seat_current_selection(struct slurp_seat *seat) {
-  return seat->touch_selection.has_selection ? &seat->touch_selection
-                                             : &seat->pointer_selection;
+  if (seat->touch_selection.has_selection) {
+    return &seat->touch_selection;
+  }
+  if (seat->tablet_selection.has_selection) {
+    return &seat->tablet_selection;
+  }
+  return &seat->pointer_selection;
 }
+
 #endif
