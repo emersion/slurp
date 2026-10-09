@@ -222,6 +222,9 @@ static void handle_selection_end(struct slurp_seat *seat,
 	}
 	if (current_selection->has_selection) {
 		state->result = current_selection->selection;
+		if (state->resizing_selection) {
+			box_shrink_by_border(&state->result, state->border_weight);
+		}
 	} else {
 		state->result.x = current_selection->x;
 		state->result.y = current_selection->y;

@@ -80,10 +80,16 @@ void render(struct slurp_output *output) {
 					       CAIRO_FONT_WEIGHT_NORMAL);
 			cairo_set_font_size(cairo, 14);
 			set_source_u32(cairo, state->colors.border);
+			// Show the size that will be output, which excludes the
+			// border for dragged selections
+			struct slurp_box inner = *sel_box;
+			if (state->resizing_selection) {
+				box_shrink_by_border(&inner, state->border_weight);
+			}
 			// buffer of 12 can hold selections up to 99999x99999
 			char dimensions[12];
 			snprintf(dimensions, sizeof(dimensions), "%ix%i",
-				 sel_box->width, sel_box->height);
+				 inner.width, inner.height);
 			cairo_move_to(cairo, sel_box->x + sel_box->width + 10,
 				      sel_box->y + sel_box->height + 20);
 			cairo_show_text(cairo, dimensions);

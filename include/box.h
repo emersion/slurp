@@ -18,4 +18,6 @@ bool in_box(const struct slurp_box *box, int32_t x, int32_t y);
 
 int32_t box_size(const struct slurp_box *box);
 
+void box_shrink_by_border(struct slurp_box *box, int32_t border_weight);
+
 #endif
