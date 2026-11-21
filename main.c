@@ -247,6 +247,14 @@ static void pointer_handle_button(void *data, struct wl_pointer *wl_pointer,
 		return;
 	}
 
+	// Right click cancels, like Escape.
+	if (button == BTN_RIGHT && button_state == WL_POINTER_BUTTON_STATE_PRESSED) {
+		seat->pointer_selection.has_selection = false;
+		seat->state->edit_anchor = false;
+		seat->state->running = false;
+		return;
+	}
+
 	seat->button_state = button_state;
 	switch (button) {
 	case BTN_LEFT:
