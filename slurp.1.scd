@@ -20,7 +20,7 @@ list of predefined rectangles for quick selection. Each line must be in the form
 that doesn't contain newlines. It can be accessed using the "%l" sequence in a
 format string.
 
-If the _Esc_ key is pressed, selection is cancelled. If the _Space_ key is
+If the _Esc_ key or the right mouse button is pressed, selection is cancelled. If the _Space_ key is
 held, the selection is moved instead of being resized.
 
 # OPTIONS
