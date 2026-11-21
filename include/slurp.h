@@ -12,6 +12,8 @@
 #include "xdg-output-unstable-v1-client-protocol.h"
 
 #define TOUCH_ID_EMPTY -1
+// Pointer travel (px) before a press becomes a drag; less is still a click on the box under it.
+#define DRAG_THRESHOLD 5
 
 struct slurp_selection {
   struct slurp_output *current_output;
@@ -19,6 +21,7 @@ struct slurp_selection {
   int32_t anchor_x, anchor_y;
   struct slurp_box selection;
   bool has_selection;
+  bool dragging; // moved past DRAG_THRESHOLD since the button went down
 };
 
 struct slurp_state {

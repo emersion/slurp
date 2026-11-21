@@ -98,6 +98,14 @@ static void handle_active_selection_motion(struct slurp_seat *seat, struct slurp
 	int32_t dist_x = current_selection->x - anchor_x;
 	int32_t dist_y = current_selection->y - anchor_y;
 
+	// A click that wobbles by a pixel or two must keep the box under the cursor instead of
+	// turning into a tiny drag selection.
+	if (!current_selection->dragging && abs(dist_x) < DRAG_THRESHOLD &&
+			abs(dist_y) < DRAG_THRESHOLD) {
+		return;
+	}
+	current_selection->dragging = true;
+
 	current_selection->has_selection = true;
 	// selection includes the seat and anchor positions
 	int32_t width = abs(dist_x) + 1;
@@ -211,6 +219,7 @@ static void handle_selection_start(struct slurp_seat *seat,
 	} else {
 		current_selection->anchor_x = current_selection->x;
 		current_selection->anchor_y = current_selection->y;
+		current_selection->dragging = false;
 	}
 }
 
